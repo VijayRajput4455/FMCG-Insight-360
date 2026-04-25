@@ -1,0 +1,351 @@
+{
+  "info": {
+    "_postman_id": "d4a9c2a8-b7f5-4f16-9e4a-6cb677d8f88c",
+    "name": "FMCG Insight 360 API",
+    "description": "Postman collection for FMCG Insight 360 backend APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "product_code",
+      "value": "DEMO"
+    },
+    {
+      "key": "product_code_id",
+      "value": "1"
+    },
+    {
+      "key": "product_name",
+      "value": "Pepsi 250ml"
+    },
+    {
+      "key": "model_name",
+      "value": "yolo26"
+    },
+    {
+      "key": "audit_id",
+      "value": "1"
+    },
+    {
+      "key": "sample_image_url",
+      "value": "https://images.unsplash.com/photo-1542838132-92c53300491e"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Root Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/"
+          }
+        },
+        {
+          "name": "DB Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/test-db"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Product Codes",
+      "item": [
+        {
+          "name": "Create Product Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_code\": \"{{product_code}}\",\n  \"description\": \"Beverage shelf audit\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/product-codes/"
+          }
+        },
+        {
+          "name": "List Product Codes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/product-codes/?skip=0&limit=50"
+          }
+        },
+        {
+          "name": "Search Product Codes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/product-codes/search/?q=DE"
+          }
+        },
+        {
+          "name": "Get Product Code By Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/product-codes/by-code/{{product_code}}"
+          }
+        },
+        {
+          "name": "Update Product Code By Code",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_code\": \"{{product_code}}\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/product-codes/by-code/{{product_code}}"
+          }
+        },
+        {
+          "name": "Delete Product Code By Code",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/product-codes/by-code/{{product_code}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_code_id\": {{product_code_id}},\n  \"product_name\": \"{{product_name}}\",\n  \"brand\": \"Pepsi\",\n  \"category\": \"Beverages\",\n  \"ai_code\": \"pepsi_250ml\",\n  \"type\": \"competitor\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/products/"
+          }
+        },
+        {
+          "name": "Bulk Create Products",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"product_code_id\": {{product_code_id}},\n    \"product_name\": \"Coke 250ml\",\n    \"brand\": \"Coca-Cola\",\n    \"category\": \"Beverages\",\n    \"ai_code\": \"coke_250ml\",\n    \"type\": \"competitor\"\n  },\n  {\n    \"product_code_id\": {{product_code_id}},\n    \"product_name\": \"Sprite 250ml\",\n    \"brand\": \"Sprite\",\n    \"category\": \"Beverages\",\n    \"ai_code\": \"sprite_250ml\",\n    \"type\": \"competitor\"\n  }\n]"
+            },
+            "url": "{{base_url}}/api/v1/products/bulk"
+          }
+        },
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/products/?skip=0&limit=50"
+          }
+        },
+        {
+          "name": "Search Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/products/search/?name=Pepsi&type=competitor&skip=0&limit=50"
+          }
+        },
+        {
+          "name": "Get Product By Name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/products/by-name/{{product_name}}"
+          }
+        },
+        {
+          "name": "Update Product By Name",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand\": \"PepsiCo\",\n  \"category\": \"Beverages\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/products/by-name/{{product_name}}"
+          }
+        },
+        {
+          "name": "Delete Product By Name",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/products/by-name/{{product_name}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Models",
+      "item": [
+        {
+          "name": "Create Model",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_code_id\": {{product_code_id}},\n  \"model_name\": \"{{model_name}}\",\n  \"model_path\": \"ml_models/yolo26m.pt\",\n  \"image_size\": 640,\n  \"conf_threshold\": 0.25,\n  \"iou_threshold\": 0.45\n}"
+            },
+            "url": "{{base_url}}/api/v1/models/"
+          }
+        },
+        {
+          "name": "List Models",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/models/?skip=0&limit=50"
+          }
+        },
+        {
+          "name": "List Models By Product Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/models/by-product-code/{{product_code_id}}"
+          }
+        },
+        {
+          "name": "Get Model By Name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/models/by-name/{{model_name}}"
+          }
+        },
+        {
+          "name": "Update Model By Name",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model_path\": \"ml_models/yolo26m.pt\",\n  \"image_size\": 640,\n  \"conf_threshold\": 0.20,\n  \"iou_threshold\": 0.40\n}"
+            },
+            "url": "{{base_url}}/api/v1/models/by-name/{{model_name}}"
+          }
+        },
+        {
+          "name": "Delete Model By Name",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/models/by-name/{{model_name}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "item": [
+        {
+          "name": "List Audits",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/audit/?skip=0&limit=50"
+          }
+        },
+        {
+          "name": "Submit Audit By URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/audit/by-code?product_code={{product_code}}&image_url={{sample_image_url}}"
+          }
+        },
+        {
+          "name": "Submit Audit By Upload",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "product_code",
+                  "value": "{{product_code}}",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/audit/by-code/upload"
+          }
+        },
+        {
+          "name": "Get Audit Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/audit/{{audit_id}}"
+          }
+        },
+        {
+          "name": "Get Annotated Image",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/audit/image/audit_sample.jpg"
+          }
+        }
+      ]
+    }
+  ]
+}
