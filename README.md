@@ -1,8 +1,6 @@
 # FMCG Insight 360
 
-<p align="center">
-	<img src="resources/FMCG_logo.png" alt="FMCG Insight 360 Logo" width="560" style="max-width: 95%; height: auto;" />
-</p>
+![FMCG Insight 360 Banner](resources/FMCG_logo.png)
 
 <p align="center">
 	<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=20&pause=1200&color=00B8D4&center=true&vCenter=true&width=1000&lines=FMCG+Shelf+Audit+Platform;FastAPI+%7C+RabbitMQ+%7C+Redis+%7C+PostgreSQL;Detection+Workflow+with+Streamlit+Ops+Console;Product+Codes+%7C+Products+%7C+Models+%7C+Audit+History" alt="FMCG Insight animated intro" />
