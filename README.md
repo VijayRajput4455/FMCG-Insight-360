@@ -1,7 +1,7 @@
 # FMCG Insight 360
 
 <p align="center">
-	<img src="resources/FMCG_logo.png" alt="FMCG Insight 360 Logo" width="1200" height="520" />
+	<img src="resources/FMCG_logo.png" alt="FMCG Insight 360 Logo" width="980" />
 </p>
 
 <p align="center">
@@ -11,71 +11,104 @@
 <p align="center">
 	<img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
 	<img src="https://img.shields.io/badge/FastAPI-0.111-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
-	<img src="https://img.shields.io/badge/Streamlit-UI-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit" />
+	<img src="https://img.shields.io/badge/PostgreSQL-Database-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
 	<img src="https://img.shields.io/badge/RabbitMQ-Async-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white" alt="RabbitMQ" />
 	<img src="https://img.shields.io/badge/Redis-Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
+	<img src="https://img.shields.io/badge/Streamlit-Ops_UI-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit" />
 </p>
 
 <p align="center">
 	<b>📦 Product Ops</b> · <b>🧠 ML Inference</b> · <b>⚡ Async Processing</b> · <b>📊 Audit Analytics</b>
 </p>
 
-End-to-end FMCG shelf audit platform with FastAPI backend, PostgreSQL storage, RabbitMQ-based async processing, Redis caching, and a Streamlit operations UI.
+<p align="center">
+	<b>Production-style FMCG shelf audit platform for product visibility, async inference, and operations control.</b>
+</p>
 
-This project lets teams:
-- manage product codes, products, and ML models,
-- submit shelf images for audit,
-- process detections asynchronously,
-- track audit status and export reports.
+<p align="center">
+	FastAPI backend · PostgreSQL persistence · RabbitMQ workers · Redis caching · YOLO inference · Streamlit ops console
+</p>
 
----
+FMCG Insight 360 combines a FastAPI backend, PostgreSQL storage, RabbitMQ-based background processing, Redis caching, and YOLO inference into a single shelf-audit workflow. The repository also includes a Streamlit operations console and an optional Next.js frontend for web-based usage.
+
+## 🎯 Overview
+
+The platform covers the full audit lifecycle:
+
+1. Create a product code.
+2. Map products to that product code.
+3. Register one or more YOLO models.
+4. Submit a shelf image by URL or file upload.
+5. Queue the audit in RabbitMQ.
+6. Process inference in the worker.
+7. Persist results in PostgreSQL and cache repeated reads in Redis.
+8. Review status, history, and output artifacts in the UI.
+
+## ✨ Highlights
+
+- FastAPI REST and WebSocket APIs for audit orchestration.
+- RabbitMQ-backed asynchronous inference workflow.
+- Redis caching for completed audit reads and lookup acceleration.
+- YOLO-based detection pipeline with in-memory model caching.
+- Streamlit admin and operations console.
+- Optional Next.js frontend in `frontend/`.
+- Support for both image-URL and file-upload audit submission.
 
 ## 📚 Table of Contents
 
-1. [Project Overview](#project-overview)
-2. [Folder Structure](#folder-structure)
-3. [Features](#features)
-4. [Technology Stack](#technology-stack)
-5. [Core Libraries](#core-libraries)
-6. [Screenshots](#screenshots)
-7. [Architecture and Flow](#architecture-and-flow)
-8. [Why RabbitMQ and Redis](#why-rabbitmq-and-redis)
-9. [Installation and Setup](#installation-and-setup)
-10. [Running the Project](#running-the-project)
+1. [Architecture](#architecture)
+2. [Technology Stack](#technology-stack)
+3. [Repository Layout](#repository-layout)
+4. [Prerequisites](#prerequisites)
+5. [Quick Start](#quick-start)
+6. [Environment Configuration](#environment-configuration)
+7. [Run Modes](#run-modes)
+8. [Smoke Test](#smoke-test)
+9. [First Audit Checklist](#first-audit-checklist)
+10. [API Summary](#api-summary)
 11. [Environment Variables](#environment-variables)
-12. [API Endpoints](#api-endpoints)
+12. [Screenshots](#screenshots)
 13. [Troubleshooting](#troubleshooting)
 
----
+## 🧠 Architecture
 
-## 🧭 Quick Navigation
+```mermaid
+flowchart LR
+		UI[Streamlit UI] --> API[FastAPI API]
+		WEB[Optional Next.js Frontend] --> API
+		API --> DB[(PostgreSQL)]
+		API --> RMQ[(RabbitMQ)]
+		API --> REDIS[(Redis)]
+		RMQ --> WORKER[Audit Worker]
+		WORKER --> MODEL[YOLO Model Service]
+		MODEL --> INF[Inference Service]
+		INF --> DB
+		INF --> OUT[outputs/audit]
+```
 
-- 🚀 [Installation and Setup](#installation-and-setup)
-- 🖼️ [Screenshots](#screenshots)
-- 🧩 [API Endpoints](#api-endpoints)
-- 🧠 [Architecture and Flow](#architecture-and-flow)
-- 📨 [Why RabbitMQ and Redis](#why-rabbitmq-and-redis)
-- 🛠️ [Troubleshooting](#troubleshooting)
+Operational flow:
 
----
+1. The client submits an audit request.
+2. FastAPI validates the payload and creates an audit record.
+3. The API publishes the audit job to RabbitMQ.
+4. The worker consumes the message and runs inference.
+5. Results are written to PostgreSQL.
+6. Completed responses may be cached in Redis.
+7. Streamlit or the optional web frontend reads audit status and artifacts.
 
-## 🎯 Project Overview
+## 🧱 Technology Stack
 
-FMCG Insight 360 is designed for product visibility audits on shelf images.
+| Layer | Technology |
+|---|---|
+| API | FastAPI, Uvicorn |
+| Database | PostgreSQL, SQLAlchemy 2 |
+| Queue | RabbitMQ, Pika |
+| Cache | Redis |
+| ML | Ultralytics YOLO, OpenCV |
+| Admin UI | Streamlit |
+| Optional Web UI | Next.js 14, React 18 |
 
-High-level lifecycle:
-1. Admin creates a Product Code.
-2. Admin maps Products to that Product Code.
-3. Admin registers one or more YOLO models for that Product Code.
-4. User submits an image URL or uploads an image for audit.
-5. API creates an audit record and queues an async job in RabbitMQ.
-6. Worker consumes job, runs inference, and writes result to DB.
-7. API returns status/results (with Redis acceleration for completed results).
-8. Streamlit UI displays live progress, history, and exports.
-
----
-
-## 🗂️ Folder Structure
+## 🗂️ Repository Layout
 
 ```text
 FMCG-Insight-360/
@@ -116,181 +149,58 @@ FMCG-Insight-360/
 │   ├── workers/
 │   │   └── worker.py
 │   └── main.py
+├── frontend/
 ├── ml_models/
-├── scripts/
-├── tests/
+├── outputs/
+├── resources/
+├── uploads/
 ├── streamlit_app.py
+├── environment.yml
 ├── requirements.txt
 ├── Dockerfile
 └── docker-compose.yml
 ```
 
----
+## ✅ Prerequisites
 
-## ✨ Features
+Install or make available the following before setup:
 
-### Backend Features
-- Product Code CRUD
-- Product CRUD + bulk create + search
-- Model CRUD + per-product-code model association
-- Audit submit (URL and file upload)
-- Audit status polling and WebSocket updates
-- Annotated output image serving
-- Audit history listing and filtering
+- Git
+- Conda or Miniconda
+- Python 3.10
+- PostgreSQL
+- RabbitMQ
+- Redis
+- Optional: Node.js 18+ and npm if you want to run the Next.js frontend in `frontend/`
+- Optional: Docker if you prefer to run infrastructure services in containers
 
-### Processing Features
-- Async audit pipeline using RabbitMQ queue
-- Retry and failed-queue handling for worker failures
-- Multi-model inference support per product code
-- Annotated image generation with detection coordinates
-- Result persistence in PostgreSQL
+Recommended local-development baseline:
 
-### Performance Features
-- Redis cache for product_code -> id lookup
-- Redis cache for completed/failed audit result responses
-- In-memory YOLO model cache with LRU and idle eviction
+- Conda environment name: `fmcg`
+- Python version: `3.10`
+- PostgreSQL on port `5432`
+- RabbitMQ on port `5672`
+- Redis on port `6379`
 
-### Streamlit UI Features
-- Unified admin console for product codes, products, models, audits
-- Live audit status and result preview
-- CSV export for tables
-- PDF export for audit detail
-- Scheduled report configuration UI
+## 🚀 Quick Start
 
----
-
-## 🧱 Technology Stack
-
-- Python 3.10+
-- FastAPI (REST and WebSocket APIs)
-- SQLAlchemy 2 + PostgreSQL
-- RabbitMQ (message broker)
-- Redis (cache)
-- YOLO via Ultralytics
-- OpenCV (image I/O and annotation)
-- Streamlit (admin and operations UI)
-
----
-
-## 📦 Core Libraries
-
-| Library | Purpose | Used In |
-|---|---|---|
-| fastapi | HTTP and WebSocket API framework | app/main.py, app/api/v1/endpoints/* |
-| uvicorn | ASGI server | backend runtime |
-| sqlalchemy | ORM and DB session management | app/core/database.py, models/repositories |
-| psycopg2-binary | PostgreSQL driver | DB connectivity |
-| pika | RabbitMQ publish/consume | app/services/rabbitmq_service.py, app/workers/worker.py |
-| redis | Cache client | app/services/redis_cache.py |
-| requests | Outbound HTTP for URL image fetch | app/api/v1/endpoints/audit.py |
-| opencv-python | Image decode, annotation, save | audit/inference services |
-| python-multipart | Multipart file upload parsing | audit upload endpoint |
-| python-dotenv | .env loading | app/core/config.py |
-| ultralytics | YOLO model runtime | app/services/model_service.py |
-| streamlit | Admin UI | streamlit_app.py |
-| Pillow | Image display in Streamlit | streamlit_app.py |
-| streamlit-option-menu | Sidebar navigation UI | streamlit_app.py |
-| reportlab | PDF report generation | streamlit_app.py |
-
----
-
-## 🖼️ Screenshots
-
-<p align="center">
-	<img src="resources/workflow_preview.jpg" alt="Workflow Preview" width="820" />
-</p>
-
-<p align="center">
-	<b>Audit workflow preview with annotated inference output</b>
-</p>
-
-<table>
-	<tr>
-		<td align="center">
-			<img src="resources/audit_preview_1.jpg" alt="Audit Preview 1" width="390" /><br/>
-			<b>Annotated Audit Output</b><br/>
-			Detection-ready shelf image with drawn bounding boxes.
-		</td>
-		<td align="center">
-			<img src="resources/audit_preview_2.jpg" alt="Audit Preview 2" width="390" /><br/>
-			<b>Processed Inference Sample</b><br/>
-			Example audit artifact produced by the async worker pipeline.
-		</td>
-	</tr>
-</table>
-
-> Note: these are bundled preview assets from the project workflow. If you want, UI screenshots from the Streamlit dashboard can be added next as dedicated admin-console previews.
-
----
-
-## 🧠 Architecture and Flow
-
-<p align="center">
-  <img src="resources/workflow_preview.jpg" alt="Workflow Preview" width="760" />
-</p>
-
-```mermaid
-flowchart LR
-	UI[Streamlit UI] --> API[FastAPI API]
-	API --> DB[(PostgreSQL)]
-	API --> RMQ[(RabbitMQ audit.jobs)]
-	API --> REDIS[(Redis Cache)]
-	RMQ --> WORKER[Audit Worker]
-	WORKER --> MODEL[YOLO Model Service]
-	MODEL --> INF[Inference Service]
-	INF --> DB
-	INF --> OUT[outputs/audit/*.jpg]
-	API --> UI
-```
-
-Detailed flow:
-1. Client calls audit submit endpoint.
-2. API validates product code and image.
-3. API creates pending audit row in DB.
-4. API publishes message to `audit.jobs` queue.
-5. Worker consumes message and marks audit `processing`.
-6. Worker loads model(s), runs inference, saves annotated image.
-7. Worker updates audit row to `completed` or `failed`.
-8. API status endpoint returns final payload (and caches completed result in Redis).
-
----
-
-## 📨 Why RabbitMQ and Redis
-
-### Why RabbitMQ
-- Decouples API request time from heavy ML inference time.
-- Prevents request timeout during model processing.
-- Supports reliable job handling with durable queues.
-- Enables retries and dead-letter style failed queue handling.
-- Makes horizontal worker scaling possible.
-
-### Why Redis
-- Speeds up repeated lookups of `product_code -> id`.
-- Caches completed audit result payloads for faster repeated reads.
-- Reduces repeated DB reads under high polling traffic.
-- Supports graceful fallback: if Redis is unavailable, app continues in DB-only mode.
-
----
-
-## 🚀 Installation and Setup
-
-### 1) Clone and enter project
+### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/VijayRajput4455/FMCG-Insight-360.git
 cd FMCG-Insight-360
 ```
 
-### 2) Create conda environment & install dependencies
+### 2. Create the Conda environment
 
-**Option A — One-command setup (recommended):**
+Recommended:
 
 ```bash
 conda env create -f environment.yml
 conda activate fmcg
 ```
 
-**Option B — Manual setup:**
+Manual alternative:
 
 ```bash
 conda create -n fmcg python=3.10 -y
@@ -299,9 +209,9 @@ pip install -r requirements.txt
 pip install ultralytics
 ```
 
-### 4) Prepare PostgreSQL database
+### 3. Prepare PostgreSQL
 
-Create DB and user (example):
+Example SQL:
 
 ```sql
 CREATE DATABASE fmcg_db;
@@ -309,43 +219,67 @@ CREATE USER admin WITH PASSWORD 'admin123';
 GRANT ALL PRIVILEGES ON DATABASE fmcg_db TO admin;
 ```
 
-### 5) Start RabbitMQ
+### 4. Start RabbitMQ
 
-Option A: local service
+Local service:
 
 ```bash
 sudo systemctl start rabbitmq-server
 ```
 
-Option B: Docker
+Docker alternative:
 
 ```bash
 docker run -d --name fmcg-rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
 ```
 
-### 6) Start Redis
+### 5. Start Redis
 
-Option A: local service
+Local service:
 
 ```bash
 sudo systemctl start redis-server
 ```
 
-Option B: conda package
+Conda-based alternative:
 
 ```bash
 conda install -n fmcg -c conda-forge redis-server -y
 conda run -n fmcg redis-server --daemonize yes
 ```
 
-### 7) Create `.env`
+### 6. Optional: run infrastructure with Docker
 
-Create `.env` in project root:
+If you do not want local PostgreSQL, RabbitMQ, and Redis installations, you can run the required infrastructure with Docker instead:
+
+```bash
+docker run -d --name fmcg-postgres \
+	-e POSTGRES_DB=fmcg_db \
+	-e POSTGRES_USER=admin \
+	-e POSTGRES_PASSWORD=admin123 \
+	-p 5432:5432 \
+	postgres:16
+
+docker run -d --name fmcg-rabbitmq \
+	-p 5672:5672 \
+	-p 15672:15672 \
+	rabbitmq:3-management
+
+docker run -d --name fmcg-redis \
+	-p 6379:6379 \
+	redis:7
+```
+
+If you use these defaults, the example `.env` values below work without changes.
+
+### 7. Create `.env`
+
+Create a `.env` file in the project root:
 
 ```env
 DATABASE_URL=postgresql://admin:admin123@localhost:5432/fmcg_db
 
-AUTO_START_WORKER=false
+AUTO_START_WORKER=true
 
 REDIS_HOST=localhost
 REDIS_PORT=6379
@@ -368,94 +302,156 @@ RABBITMQ_MAX_RETRIES=3
 
 AUDIT_INPUT_DIR=uploads/audit
 AUDIT_OUTPUT_DIR=outputs/audit
+
 MODEL_CACHE_SIZE=10
 MODEL_MAX_IDLE_SECONDS=900
 ```
 
----
+## ⚙️ Environment Configuration
 
-## ▶️ Running the Project
+Local recommendation:
 
-Open separate terminals.
+- Use `AUTO_START_WORKER=true` for the simplest developer setup.
+- Use `AUTO_START_WORKER=false` when you want the worker in a separate terminal or deployment unit.
+- The application currently creates database tables on startup for development convenience.
 
-### Terminal 1: FastAPI backend
+Important behavior:
+
+- If `AUTO_START_WORKER=true`, starting `uvicorn` also starts the embedded worker thread.
+- If `AUTO_START_WORKER=false`, you must run `python -m app.workers.worker` separately.
+- Do not run both embedded and separate worker modes together unless you intentionally want multiple consumers.
+
+## ▶️ Run Modes
+
+### Option A. Recommended local mode
+
+Use this when you want the fastest local setup.
+
+Terminal 1: FastAPI backend and embedded worker
 
 ```bash
 conda activate fmcg
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Terminal 2: Worker
-
-```bash
-conda activate fmcg
-python -m app.workers.worker
-```
-
-### Terminal 3: Streamlit UI
+Terminal 2: Streamlit UI
 
 ```bash
 conda activate fmcg
 streamlit run streamlit_app.py --server.port 8501
 ```
 
+Optional Terminal 3: Next.js frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Option B. Separate worker mode
+
+Use this when you want clearer process separation or when preparing for scaled deployment.
+
+Set this in `.env` first:
+
+```env
+AUTO_START_WORKER=false
+```
+
+Terminal 1: FastAPI backend
+
+```bash
+conda activate fmcg
+uvicorn app.main:app --reload --port 8000
+```
+
+Terminal 2: Worker
+
+```bash
+conda activate fmcg
+python -m app.workers.worker
+```
+
+Terminal 3: Streamlit UI
+
+```bash
+conda activate fmcg
+streamlit run streamlit_app.py --server.port 8501
+```
+
+Optional Terminal 4: Next.js frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
 Useful URLs:
-- API root health: `http://127.0.0.1:8000/`
+
+- API root: `http://127.0.0.1:8000/`
 - FastAPI docs: `http://127.0.0.1:8000/docs`
 - Streamlit UI: `http://127.0.0.1:8501`
-- RabbitMQ UI (if management enabled): `http://127.0.0.1:15672`
+- Next.js frontend: `http://127.0.0.1:3000`
+- RabbitMQ management UI: `http://127.0.0.1:15672`
 
----
+## 🧪 Smoke Test
 
-## 🔐 Environment Variables
+After startup, verify the stack in this order.
 
-| Variable | Description | Default |
-|---|---|---|
-| DATABASE_URL | SQLAlchemy database URL | required |
-| AUTO_START_WORKER | Start worker in API process startup | false |
-| REDIS_HOST | Redis host | localhost |
-| REDIS_PORT | Redis port | 6379 |
-| REDIS_DB | Redis db index | 0 |
-| REDIS_PASSWORD | Redis password | empty |
-| REDIS_DEFAULT_TTL_SECONDS | Generic cache TTL | 600 |
-| REDIS_AUDIT_RESULT_TTL_SECONDS | Audit status cache TTL | 1800 |
-| RABBITMQ_HOST | RabbitMQ host | localhost |
-| RABBITMQ_PORT | RabbitMQ port | 5672 |
-| RABBITMQ_USER | RabbitMQ user | guest |
-| RABBITMQ_PASSWORD | RabbitMQ password | guest |
-| RABBITMQ_VHOST | RabbitMQ virtual host | / |
-| RABBITMQ_HEARTBEAT | Rabbit connection heartbeat | 600 |
-| RABBITMQ_BLOCKED_TIMEOUT | Block timeout in seconds | 300 |
-| RABBITMQ_EXCHANGE | Direct exchange name | fmcg.direct |
-| RABBITMQ_AUDIT_QUEUE | Queue for audit jobs | audit.jobs |
-| RABBITMQ_AUDIT_FAILED_QUEUE | Queue for terminal failures | audit.jobs.failed |
-| RABBITMQ_MAX_RETRIES | Max worker retry attempts | 3 |
-| AUDIT_INPUT_DIR | Saved uploaded/input images | uploads/audit |
-| AUDIT_OUTPUT_DIR | Saved annotated images | outputs/audit |
-| MODEL_CACHE_SIZE | Max loaded YOLO models in memory | 10 |
-| MODEL_MAX_IDLE_SECONDS | Model idle eviction timeout | 900 |
+### 1. API health
 
----
+```bash
+curl http://127.0.0.1:8000/
+```
 
-## 🔌 API Endpoints
+Expected response:
 
-Base prefix: `/api/v1`
+```json
+{"status":"OK"}
+```
 
-### Product Codes
+### 2. Database connectivity
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/product-codes/` | Create product code |
-| GET | `/product-codes/` | List product codes (`skip`, `limit<=200`) |
-| GET | `/product-codes/search/` | Search by partial code (`q`) |
-| GET | `/product-codes/by-code/{product_code}` | Get by code |
-| GET | `/product-codes/{code_id}` | Get by id |
-| PUT | `/product-codes/by-code/{product_code}` | Update by code |
-| PUT | `/product-codes/{code_id}` | Update by id |
-| DELETE | `/product-codes/by-code/{product_code}` | Delete by code |
-| DELETE | `/product-codes/{code_id}` | Delete by id |
+```bash
+curl http://127.0.0.1:8000/test-db
+```
 
-Create example:
+Expected response:
+
+```json
+{"status":"DB connected successfully"}
+```
+
+### 3. FastAPI docs availability
+
+Open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### 4. Product-code endpoint availability
+
+```bash
+curl http://127.0.0.1:8000/api/v1/product-codes/
+```
+
+If this responds without infrastructure errors, the API stack is in usable shape.
+
+## 📋 First Audit Checklist
+
+Before testing a real audit, complete these steps in order:
+
+1. Create a product code.
+2. Create one or more products linked to that product code.
+3. Register a model whose `model_path` points to a valid file in `ml_models/`.
+4. Submit an audit by image URL or file upload.
+
+Example sequence:
+
+Create a product code:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/product-codes/" \
@@ -463,22 +459,7 @@ curl -X POST "http://127.0.0.1:8000/api/v1/product-codes/" \
 	-d '{"product_code":"DEMO","description":"Beverage shelf audit"}'
 ```
 
-### Products
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/products/` | Create product |
-| POST | `/products/bulk` | Bulk create products |
-| GET | `/products/` | List products (`skip`, `limit<=200`) |
-| GET | `/products/search/` | Search (`product_code_id`, `name`, `brand`, `category`, `type`) |
-| GET | `/products/by-name/{product_name}` | Get by name |
-| GET | `/products/{product_id}` | Get by id |
-| PUT | `/products/by-name/{product_name}` | Update by name |
-| PUT | `/products/{product_id}` | Update by id |
-| DELETE | `/products/by-name/{product_name}` | Delete by name |
-| DELETE | `/products/{product_id}` | Delete by id |
-
-Create example:
+Create a product:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/products/" \
@@ -493,21 +474,7 @@ curl -X POST "http://127.0.0.1:8000/api/v1/products/" \
 	}'
 ```
 
-### Models
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/models/` | Register model |
-| GET | `/models/` | List models (`skip`, `limit<=200`) |
-| GET | `/models/by-product-code/{product_code_id}` | Models by product code id |
-| GET | `/models/by-name/{model_name}` | Get model by name |
-| GET | `/models/{model_id}` | Get model by id |
-| PUT | `/models/by-name/{model_name}` | Update model by name |
-| PUT | `/models/{model_id}` | Update model by id |
-| DELETE | `/models/by-name/{model_name}` | Delete model by name |
-| DELETE | `/models/{model_id}` | Delete model by id |
-
-Register model example:
+Register a model:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/models/" \
@@ -522,24 +489,13 @@ curl -X POST "http://127.0.0.1:8000/api/v1/models/" \
 	}'
 ```
 
-### Audit
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/audit/` | List audits (`product_code`, `status`, `skip`, `limit<=200`) |
-| GET | `/audit/by-code` | Submit audit by image URL (queues async job) |
-| POST | `/audit/by-code/upload` | Submit audit by file upload (queues async job) |
-| GET | `/audit/{audit_id}` | Poll audit status/result |
-| WS | `/audit/ws/{audit_id}` | Real-time status stream |
-| GET | `/audit/image/{filename}` | Serve annotated output image |
-
-Submit by URL example:
+Submit an audit by URL:
 
 ```bash
 curl "http://127.0.0.1:8000/api/v1/audit/by-code?product_code=DEMO&image_url=https://example.com/shelf.jpg"
 ```
 
-Submit by upload example:
+Submit an audit by upload:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/audit/by-code/upload" \
@@ -547,70 +503,189 @@ curl -X POST "http://127.0.0.1:8000/api/v1/audit/by-code/upload" \
 	-F "file=@/path/to/shelf.jpg"
 ```
 
-Poll example:
+Poll the audit:
 
 ```bash
 curl "http://127.0.0.1:8000/api/v1/audit/123"
 ```
 
-WebSocket example:
+## 🔌 API Summary
 
-```text
-ws://127.0.0.1:8000/api/v1/audit/ws/123
-```
+Base prefix: `/api/v1`
 
----
+### Product Codes
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/product-codes/` | Create product code |
+| GET | `/product-codes/` | List product codes |
+| GET | `/product-codes/search/` | Search by partial code |
+| GET | `/product-codes/by-code/{product_code}` | Get by code |
+| GET | `/product-codes/{code_id}` | Get by id |
+| PUT | `/product-codes/by-code/{product_code}` | Update by code |
+| PUT | `/product-codes/{code_id}` | Update by id |
+| DELETE | `/product-codes/by-code/{product_code}` | Delete by code |
+| DELETE | `/product-codes/{code_id}` | Delete by id |
+
+### Products
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/products/` | Create product |
+| POST | `/products/bulk` | Bulk create products |
+| GET | `/products/` | List products |
+| GET | `/products/search/` | Search products |
+| GET | `/products/by-name/{product_name}` | Get by name |
+| GET | `/products/{product_id}` | Get by id |
+| PUT | `/products/by-name/{product_name}` | Update by name |
+| PUT | `/products/{product_id}` | Update by id |
+| DELETE | `/products/by-name/{product_name}` | Delete by name |
+| DELETE | `/products/{product_id}` | Delete by id |
+
+### Models
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/models/` | Register model |
+| GET | `/models/` | List models |
+| GET | `/models/by-product-code/{product_code_id}` | Models by product code |
+| GET | `/models/by-name/{model_name}` | Get by name |
+| GET | `/models/{model_id}` | Get by id |
+| PUT | `/models/by-name/{model_name}` | Update by name |
+| PUT | `/models/{model_id}` | Update by id |
+| DELETE | `/models/by-name/{model_name}` | Delete by name |
+| DELETE | `/models/{model_id}` | Delete by id |
+
+### Audit
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/audit/` | List audits |
+| GET | `/audit/by-code` | Submit audit by image URL |
+| POST | `/audit/by-code/upload` | Submit audit by file upload |
+| GET | `/audit/{audit_id}` | Poll audit status/result |
+| WS | `/audit/ws/{audit_id}` | Real-time status stream |
+| GET | `/audit/image/{filename}` | Serve annotated image |
+
+## 🔐 Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| DATABASE_URL | SQLAlchemy database URL | required |
+| AUTO_START_WORKER | `true` starts the worker with `uvicorn`; `false` requires a separate worker process | false |
+| REDIS_HOST | Redis host | localhost |
+| REDIS_PORT | Redis port | 6379 |
+| REDIS_DB | Redis database index | 0 |
+| REDIS_PASSWORD | Redis password | empty |
+| REDIS_DEFAULT_TTL_SECONDS | Default cache TTL | 600 |
+| REDIS_AUDIT_RESULT_TTL_SECONDS | Audit-result cache TTL | 1800 |
+| RABBITMQ_HOST | RabbitMQ host | localhost |
+| RABBITMQ_PORT | RabbitMQ port | 5672 |
+| RABBITMQ_USER | RabbitMQ user | guest |
+| RABBITMQ_PASSWORD | RabbitMQ password | guest |
+| RABBITMQ_VHOST | RabbitMQ virtual host | / |
+| RABBITMQ_HEARTBEAT | RabbitMQ heartbeat | 600 |
+| RABBITMQ_BLOCKED_TIMEOUT | RabbitMQ blocked timeout | 300 |
+| RABBITMQ_EXCHANGE | Exchange name | fmcg.direct |
+| RABBITMQ_AUDIT_QUEUE | Primary audit queue | audit.jobs |
+| RABBITMQ_AUDIT_FAILED_QUEUE | Failed-job queue | audit.jobs.failed |
+| RABBITMQ_MAX_RETRIES | Maximum retry attempts | 3 |
+| AUDIT_INPUT_DIR | Uploaded/input image directory | uploads/audit |
+| AUDIT_OUTPUT_DIR | Annotated output directory | outputs/audit |
+| MODEL_CACHE_SIZE | Maximum in-memory model cache size | 10 |
+| MODEL_MAX_IDLE_SECONDS | Model idle eviction threshold | 900 |
+
+## 🖼️ Screenshots
+
+<p align="center">
+	<img src="resources/workflow_preview.png" alt="Workflow Preview" width="900" />
+</p>
+
+<p align="center">
+	<b>Workflow preview from the current project assets</b>
+</p>
+
+Current repository assets include the workflow preview above. If you export Streamlit or Next.js UI screenshots later, they can be added here as dedicated product views.
 
 ## 🛠️ Troubleshooting
 
-### 1) 422 on list endpoints
-Cause: `limit` exceeds API max of 200.
-Fix: keep `limit<=200` for `/products/`, `/models/`, `/product-codes/`, `/audit/`.
+### Common setup mistakes
 
-### 2) Redis connection refused
-Cause: Redis not running.
-Fix:
+These are the most common reasons a fresh setup fails:
+
+- `DATABASE_URL` is missing or points to the wrong database.
+- PostgreSQL, RabbitMQ, or Redis is not actually running.
+- `AUTO_START_WORKER=true` is set, but a separate worker is also started manually.
+- `AUTO_START_WORKER=false` is set, but no worker process is started.
+- A model is not registered for the selected product code.
+- `model_path` in the database does not match the actual file inside `ml_models/`.
+- Users try audit endpoints before creating product code, product, and model records.
+
+### API starts but audits stay pending
+
+Check these first:
+
+- RabbitMQ is running.
+- The worker is actually running.
+- `AUTO_START_WORKER` matches your chosen run mode.
+- A model exists for the selected product code.
+
+### Redis connection refused
+
+Verify Redis:
 
 ```bash
 redis-cli ping
 ```
 
-Expected: `PONG`.
+Expected output:
 
-### 3) Audit stuck in pending
-Possible causes:
-- Worker process not running
-- RabbitMQ not reachable
-- No model mapped to product code
+```text
+PONG
+```
 
-Checks:
-1. Worker terminal logs
-2. RabbitMQ queue depth
-3. Model registration for selected product code
+### Database connection errors
 
-### 4) Model load errors
-Cause: invalid `model_path` or missing model file.
-Fix: verify file exists and path is accessible from backend runtime.
+Common causes:
 
-### 5) Streamlit port already in use
-Fix: run on a different port, for example:
+- Invalid `DATABASE_URL`
+- PostgreSQL service not running
+- Database or user not created yet
+
+Check:
+
+```bash
+curl http://127.0.0.1:8000/test-db
+```
+
+### Model load failures
+
+Verify that:
+
+- The model file exists.
+- The `model_path` stored in the database matches the real file path.
+- The runtime environment can access `ml_models/`.
+
+### Streamlit or frontend port already in use
+
+Use a different port.
+
+Streamlit example:
 
 ```bash
 streamlit run streamlit_app.py --server.port 8502
 ```
 
----
+Next.js example:
 
-## ❤️ Made With
+```bash
+cd frontend
+npm run dev -- --port 3001
+```
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Made%20with-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="Made with FastAPI" />
-  <img src="https://img.shields.io/badge/Powered%20by-Ultralytics%20YOLO-111827?style=for-the-badge&logo=python&logoColor=white" alt="Powered by YOLO" />
-  <img src="https://img.shields.io/badge/Async-RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white" alt="RabbitMQ" />
-  <img src="https://img.shields.io/badge/Cached%20with-Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
-  <img src="https://img.shields.io/badge/UI-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit" />
-</p>
+## 📝 Notes for New Users
 
-<p align="center">
-  Built for real-world FMCG shelf intelligence, from data ops to inference ops.
-</p>
+- Start with Option A unless you specifically need a separate worker process.
+- Use the FastAPI docs at `/docs` for interactive testing.
+- If you are only validating the backend, Streamlit and Next.js are optional.
+- Verify health, DB, and product-code endpoints before attempting a full audit.
