@@ -1,6 +1,8 @@
 # FMCG Insight 360
 
-![FMCG Insight 360 Banner](resources/FMCG_logo.png)
+<p align="center">
+	<img src="resources/FMCG_logo.png" alt="FMCG Insight 360 Logo" width="240" />
+</p>
 
 <p align="center">
 	<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=20&pause=1200&color=00B8D4&center=true&vCenter=true&width=1000&lines=FMCG+Shelf+Audit+Platform;FastAPI+%7C+RabbitMQ+%7C+Redis+%7C+PostgreSQL;Detection+Workflow+with+Streamlit+Ops+Console;Product+Codes+%7C+Products+%7C+Models+%7C+Audit+History" alt="FMCG Insight animated intro" />
@@ -35,19 +37,21 @@ This project lets teams:
 3. [Features](#features)
 4. [Technology Stack](#technology-stack)
 5. [Core Libraries](#core-libraries)
-6. [Architecture and Flow](#architecture-and-flow)
-7. [Why RabbitMQ and Redis](#why-rabbitmq-and-redis)
-8. [Installation and Setup](#installation-and-setup)
-9. [Running the Project](#running-the-project)
-10. [Environment Variables](#environment-variables)
-11. [API Endpoints](#api-endpoints)
-12. [Troubleshooting](#troubleshooting)
+6. [Screenshots](#screenshots)
+7. [Architecture and Flow](#architecture-and-flow)
+8. [Why RabbitMQ and Redis](#why-rabbitmq-and-redis)
+9. [Installation and Setup](#installation-and-setup)
+10. [Running the Project](#running-the-project)
+11. [Environment Variables](#environment-variables)
+12. [API Endpoints](#api-endpoints)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## 🧭 Quick Navigation
 
 - 🚀 [Installation and Setup](#installation-and-setup)
+- 🖼️ [Screenshots](#screenshots)
 - 🧩 [API Endpoints](#api-endpoints)
 - 🧠 [Architecture and Flow](#architecture-and-flow)
 - 📨 [Why RabbitMQ and Redis](#why-rabbitmq-and-redis)
@@ -190,6 +194,35 @@ FMCG-Insight-360/
 
 ---
 
+## 🖼️ Screenshots
+
+<p align="center">
+	<img src="resources/workflow_preview.jpg" alt="Workflow Preview" width="820" />
+</p>
+
+<p align="center">
+	<b>Audit workflow preview with annotated inference output</b>
+</p>
+
+<table>
+	<tr>
+		<td align="center">
+			<img src="resources/audit_preview_1.jpg" alt="Audit Preview 1" width="390" /><br/>
+			<b>Annotated Audit Output</b><br/>
+			Detection-ready shelf image with drawn bounding boxes.
+		</td>
+		<td align="center">
+			<img src="resources/audit_preview_2.jpg" alt="Audit Preview 2" width="390" /><br/>
+			<b>Processed Inference Sample</b><br/>
+			Example audit artifact produced by the async worker pipeline.
+		</td>
+	</tr>
+</table>
+
+> Note: these are bundled preview assets from the project workflow. If you want, UI screenshots from the Streamlit dashboard can be added next as dedicated admin-console previews.
+
+---
+
 ## 🧠 Architecture and Flow
 
 <p align="center">
@@ -248,16 +281,20 @@ git clone <your-repo-url>
 cd FMCG-Insight-360
 ```
 
-### 2) Create conda environment
+### 2) Create conda environment & install dependencies
+
+**Option A — One-command setup (recommended):**
+
+```bash
+conda env create -f environment.yml
+conda activate fmcg
+```
+
+**Option B — Manual setup:**
 
 ```bash
 conda create -n fmcg python=3.10 -y
 conda activate fmcg
-```
-
-### 3) Install dependencies
-
-```bash
 pip install -r requirements.txt
 pip install ultralytics
 ```
