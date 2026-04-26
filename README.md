@@ -1,7 +1,7 @@
 # FMCG Insight 360
 
 <p align="center">
-	<img src="resources/FMCG_logo.png" alt="FMCG Insight 360 Logo" width="240" />
+	<img src="resources/FMCG_logo.png" alt="FMCG Insight 360 Logo" width="1200" height="520" />
 </p>
 
 <p align="center">
