@@ -11,12 +11,25 @@ from sqlalchemy.orm import Session
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import engine, Base, get_db, get_database_status
+from app.core.context import set_request_id
+from app.core.logger import setup_logging
 from app.models import *  # register all models
 from app.schemas.error import ErrorResponse
-from app.workers.worker import start_worker_in_background
+from app.workers.worker import start_worker_in_background, get_worker_runtime_status
+
+setup_logging(settings.LOG_LEVEL, log_dir=settings.LOG_DIR, log_file=settings.LOG_FILE)
 
 app = FastAPI(title="FMCG Insight 360")
 logger = logging.getLogger("uvicorn.error")
+
+
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    rid = request.headers.get("X-Request-ID")
+    set_request_id(rid)  # generates UUID if header absent
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request.headers.get("X-Request-ID", "-")
+    return response
 
 
 @app.exception_handler(HTTPException)
@@ -108,3 +121,8 @@ def test_db(db: Session = Depends(get_db)):
 def debug_db_status():
     ok, message = get_database_status()
     return {"ok": ok, "message": message}
+
+
+@app.get("/worker-status")
+def worker_status():
+    return get_worker_runtime_status()

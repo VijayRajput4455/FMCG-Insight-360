@@ -6,6 +6,9 @@ load_dotenv()
 
 class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL")
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_DIR: str = os.getenv("LOG_DIR", "logs")
+    LOG_FILE: str = os.getenv("LOG_FILE", "app.log")
     AUTO_START_WORKER: bool = os.getenv("AUTO_START_WORKER", "false").strip().lower() in {"1", "true", "yes", "on"}
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
