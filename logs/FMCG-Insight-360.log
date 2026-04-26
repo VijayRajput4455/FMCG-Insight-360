@@ -1,0 +1,1 @@
+[2026-04-26 13:47:47,833] | level=INFO | request_id=- | module=app.core.database | function=get_database_status | line=67 | message="Postgres connected successfully: db=fmcg_db, user=admin, host=172.18.0.2/32, port=5432"

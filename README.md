@@ -272,6 +272,40 @@ docker run -d --name fmcg-redis \
 
 If you use these defaults, the example `.env` values below work without changes.
 
+### 6B. Full Dockerized App (API + Worker + Infra)
+
+This repository now includes a full containerized stack using `Dockerfile`, `docker-compose.yml`, and `.env.docker`.
+
+```bash
+docker compose up --build -d
+```
+
+Useful commands:
+
+```bash
+# See all services
+docker compose ps
+
+# API logs
+docker compose logs -f api
+
+# Worker logs
+docker compose logs -f worker
+
+# Stop everything
+docker compose down
+```
+
+Endpoints after startup:
+
+- API: `http://localhost:8000`
+- RabbitMQ management: `http://localhost:15672` (guest/guest)
+
+Notes:
+
+- The Docker stack uses `.env.docker` with container hostnames (`postgres`, `redis`, `rabbitmq`).
+- `AUTO_START_WORKER=false` in Docker because worker runs as a separate container.
+
 ### 7. Create `.env`
 
 Create a `.env` file in the project root:
