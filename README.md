@@ -278,6 +278,7 @@ Create a `.env` file in the project root:
 
 ```env
 DATABASE_URL=postgresql://admin:admin123@localhost:5432/fmcg_db
+LOG_LEVEL=INFO
 
 AUTO_START_WORKER=true
 
@@ -572,6 +573,7 @@ Base prefix: `/api/v1`
 | Variable | Description | Default |
 |---|---|---|
 | DATABASE_URL | SQLAlchemy database URL | required |
+| LOG_LEVEL | Global log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) | INFO |
 | AUTO_START_WORKER | `true` starts the worker with `uvicorn`; `false` requires a separate worker process | false |
 | REDIS_HOST | Redis host | localhost |
 | REDIS_PORT | Redis port | 6379 |

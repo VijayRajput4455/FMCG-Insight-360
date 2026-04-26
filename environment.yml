@@ -1,4 +1,4 @@
-name: fmcg
+name: fmcg_123
 channels:
   - conda-forge
   - defaults
