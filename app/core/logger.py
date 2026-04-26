@@ -6,7 +6,7 @@ from logging.handlers import RotatingFileHandler
 from app.core.context import get_request_id
 
 
-_LOG_FORMAT = "[%(asctime)s] [%(request_id)s] [%(levelname)s] [%(name)s] %(message)s"
+_LOG_FORMAT = '[%(asctime)s] | level=%(levelname)s | request_id=%(request_id)s | module=%(name)s | function=%(funcName)s | line=%(lineno)d | message="%(message)s"'
 _configured = False
 _lock = threading.Lock()
 
