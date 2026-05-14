@@ -65,7 +65,13 @@ The platform covers the full audit lifecycle:
 7. [Run Modes](#run-modes)
 8. [Smoke Test](#smoke-test)
 9. [First Audit Checklist](#first-audit-checklist)
-10. [API Summary](#api-summary)
+10. [🔌 API Documentation](#-api-documentation)
+    - [Product Codes API](#-product-codes-api)
+    - [Products API](#-products-api)
+    - [Models API](#-models-api)
+    - [Audit API](#-audit-api)
+    - [Error Responses](#-error-response-format)
+    - [How to Use with Postman](#-how-to-use-apis-with-postman)
 11. [Environment Variables](#environment-variables)
 12. [Screenshots](#screenshots)
 13. [Troubleshooting](#troubleshooting)
@@ -112,53 +118,120 @@ Operational flow:
 
 ```text
 FMCG-Insight-360/
-├── app/
-│   ├── api/
-│   │   └── v1/
-│   │       ├── router.py
-│   │       └── endpoints/
-│   │           ├── audit.py
-│   │           ├── models.py
-│   │           ├── product_codes.py
-│   │           └── products.py
-│   ├── core/
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   └── logger.py
-│   ├── models/
-│   │   ├── audit_result.py
-│   │   ├── model.py
-│   │   ├── product.py
-│   │   └── product_code.py
-│   ├── repositories/
-│   │   ├── audit_repo.py
-│   │   ├── model_repo.py
-│   │   └── product_repo.py
-│   ├── schemas/
-│   │   ├── audit.py
-│   │   ├── error.py
-│   │   ├── model.py
-│   │   ├── product.py
-│   │   └── product_code.py
-│   ├── services/
-│   │   ├── audit_service.py
-│   │   ├── inference_service.py
-│   │   ├── model_service.py
-│   │   ├── rabbitmq_service.py
-│   │   └── redis_cache.py
-│   ├── workers/
-│   │   └── worker.py
-│   └── main.py
-├── frontend/
-├── ml_models/
-├── outputs/
-├── resources/
-├── uploads/
-├── streamlit_app.py
-├── environment.yml
-├── requirements.txt
+├── .dockerignore
+├── .env
+├── .env.docker
+├── .git/
+├── .gitignore
 ├── Dockerfile
-└── docker-compose.yml
+├── docker-compose.yml
+├── environment.yml
+├── README.md
+├── requirements.txt
+├── resources/
+│   └── FMCG_logo.png
+├── ml_models/
+│   ├── yolo26m.pt
+│   └── yolov26/
+│       ├── config.json
+│       └── yolo26m.pt
+├── outputs/
+│   └── audit/
+├── uploads/
+│   └── audit/
+├── logs/
+│   └── FMCG-Insight-360.log
+├── monitoring/
+│   ├── loki-config.yml
+│   ├── prometheus.yml
+│   ├── promtail-config.yml
+│   ├── README.md
+│   └── grafana/
+│       ├── dashboards/
+│       │   └── fmcg-dashboard.json
+│       └── provisioning/
+│           ├── dashboards/
+│           │   └── dashboards.yml
+│           └── datasources/
+│               └── datasources.yml
+├── streamlit_app.py
+├── frontend/
+│   ├── next-env.d.ts
+│   ├── next.config.mjs
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       ├── app/
+│       │   ├── globals.css
+│       │   ├── layout.tsx
+│       │   ├── page.tsx
+│       │   ├── audit/
+│       │   │   └── [id]/page.tsx
+│       │   ├── dashboard/page.tsx
+│       │   ├── history/page.tsx
+│       │   └── product-codes/page.tsx
+│       ├── components/
+│       │   ├── AuditConsole.tsx
+│       │   ├── AuditHistoryTable.tsx
+│       │   ├── ErrorBox.tsx
+│       │   ├── ProductCodeManager.tsx
+│       │   └── Skeleton.tsx
+│       └── lib/
+│           ├── api.ts
+│           ├── history.ts
+│           └── ws.ts
+└── app/
+    ├── __init__.py
+    ├── api/
+    │   └── v1/
+    │       ├── __init__.py
+    │       ├── router.py
+    │       └── endpoints/
+    │           ├── __init__.py
+    │           ├── audit.py
+    │           ├── models.py
+    │           ├── product_codes.py
+    │           └── products.py
+    ├── core/
+    │   ├── __init__.py
+    │   ├── config.py
+    │   ├── context.py
+    │   ├── database.py
+    │   ├── logger.py
+    │   └── metrics.py
+    ├── models/
+    │   ├── __init__.py
+    │   ├── audit_result.py
+    │   ├── model.py
+    │   ├── product.py
+    │   └── product_code.py
+    ├── repositories/
+    │   ├── __init__.py
+    │   ├── audit_repo.py
+    │   ├── model_repo.py
+    │   └── product_repo.py
+    ├── schemas/
+    │   ├── __init__.py
+    │   ├── audit.py
+    │   ├── error.py
+    │   ├── model.py
+    │   ├── product.py
+    │   └── product_code.py
+    ├── services/
+    │   ├── __init__.py
+    │   ├── audit_service.py
+    │   ├── inference_service.py
+    │   ├── model_service.py
+    │   ├── rabbitmq_service.py
+    │   └── redis_cache.py
+    ├── utils/
+    │   ├── __init__.py
+    │   ├── file_handler.py
+    │   └── model_cache.py
+    ├── workers/
+    │   ├── __init__.py
+    │   └── worker.py
+    └── main.py
 ```
 
 ## ✅ Prerequisites
@@ -544,63 +617,1428 @@ Poll the audit:
 curl "http://127.0.0.1:8000/api/v1/audit/123"
 ```
 
-## 🔌 API Summary
+## 🔌 API Documentation
 
-Base prefix: `/api/v1`
+Base URL: `http://localhost:8000/api/v1`
 
-### Product Codes
+### 📌 Endpoint Quick Reference
 
-| Method | Endpoint | Description |
+| 🏷️ Resource | 📝 Method | 🔗 Endpoint | 📋 Description |
+|---|---|---|---|
+| **Product Codes** | `POST` | `/product-codes/` | Create product code |
+| | `GET` | `/product-codes/` | List all product codes |
+| | `GET` | `/product-codes/search/` | Search product codes |
+| | `GET` | `/product-codes/by-code/{product_code}` | Get by code name |
+| | `GET` | `/product-codes/{code_id}` | Get by ID |
+| | `PUT` | `/product-codes/by-code/{product_code}` | Update by code |
+| | `DELETE` | `/product-codes/by-code/{product_code}` | Delete by code |
+| **Products** | `POST` | `/products/` | Create single product |
+| | `POST` | `/products/bulk` | Create multiple products |
+| | `GET` | `/products/` | List all products |
+| | `GET` | `/products/search/` | Search with filters |
+| | `GET` | `/products/by-name/{product_name}` | Get by name |
+| | `GET` | `/products/{product_id}` | Get by ID |
+| | `PUT` | `/products/by-name/{product_name}` | Update by name |
+| | `PUT` | `/products/{product_id}` | Update by ID |
+| | `DELETE` | `/products/by-name/{product_name}` | Delete by name |
+| | `DELETE` | `/products/{product_id}` | Delete by ID |
+| **Models** | `POST` | `/models/` | Register YOLO model |
+| | `GET` | `/models/` | List all models |
+| | `GET` | `/models/by-product-code/{product_code_id}` | Get by product code |
+| | `GET` | `/models/by-name/{model_name}` | Get by name |
+| | `GET` | `/models/{model_id}` | Get by ID |
+| | `PUT` | `/models/by-name/{model_name}` | Update by name |
+| | `PUT` | `/models/{model_id}` | Update by ID |
+| | `DELETE` | `/models/by-name/{model_name}` | Delete by name |
+| **Audit** | `GET` | `/audit/` | List audits with filters |
+| | `GET` | `/audit/by-code` | Submit audit (URL) |
+| | `POST` | `/audit/by-code/upload` | Submit audit (upload) |
+| | `GET` | `/audit/{audit_id}` | Get audit status |
+| | `WS` | `/audit/ws/{audit_id}` | WebSocket: Real-time updates |
+| | `GET` | `/audit/image/{filename}` | Download annotated image |
+
+---
+
+## 🧭 Route Mapping
+
+The API router is configured in `app/api/v1/router.py`.
+The following route prefixes are mounted under the base API path `/api/v1`.
+
+| Prefix | Router Module | Function |
 |---|---|---|
-| POST | `/product-codes/` | Create product code |
-| GET | `/product-codes/` | List product codes |
-| GET | `/product-codes/search/` | Search by partial code |
-| GET | `/product-codes/by-code/{product_code}` | Get by code |
-| GET | `/product-codes/{code_id}` | Get by id |
-| PUT | `/product-codes/by-code/{product_code}` | Update by code |
-| PUT | `/product-codes/{code_id}` | Update by id |
-| DELETE | `/product-codes/by-code/{product_code}` | Delete by code |
-| DELETE | `/product-codes/{code_id}` | Delete by id |
+| `/products` | `app.api.v1.endpoints.products` | Product CRUD and search |
+| `/product-codes` | `app.api.v1.endpoints.product_codes` | Product code CRUD and search |
+| `/models` | `app.api.v1.endpoints.models` | Model registration and management |
+| `/audit` | `app.api.v1.endpoints.audit` | Audit submission, status, WebSocket, images |
 
-### Products
+**Example:**
+- `app/api/v1/router.py` includes `products.router` with `prefix='/products'`
+- Therefore the full URL for product creation is `http://localhost:8000/api/v1/products/`
 
-| Method | Endpoint | Description |
+---
+
+## 📦 Product Codes API
+
+Manage brand/product code identifiers.
+
+### ✅ Create Product Code
+**POST** `/product-codes/`
+
+**Description:** Create a new product code (e.g., "PEPSI", "AMUL").
+
+**Request Body:**
+```json
+{
+  "product_code": "PEPSI",
+  "description": "Pepsi brand beverages - Cola category"
+}
+```
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `product_code` | string | ✅ Yes | 1-50 chars, alphanumeric + `-` `_` |
+| `description` | string | ❌ No | Max 500 chars |
+
+**Response (201):**
+```json
+{
+  "id": 1,
+  "product_code": "PEPSI",
+  "description": "Pepsi brand beverages - Cola category",
+  "created_at": "2026-05-14T10:30:45.123456"
+}
+```
+
+**Error Responses:**
+- **400** - Product code already exists
+- **422** - Validation error (invalid format)
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/product-codes/
+Method: POST
+Headers: Content-Type: application/json
+Body (raw JSON):
+{
+  "product_code": "PEPSI",
+  "description": "Cola beverages"
+}
+```
+
+---
+
+### 📋 List All Product Codes
+**GET** `/product-codes/`
+
+**Description:** Retrieve all product codes with pagination.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `skip` | integer | 0 | Number of records to skip |
+| `limit` | integer | 50 | Max records to return (1-200) |
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "product_code": "PEPSI",
+    "description": "Cola beverages",
+    "created_at": "2026-05-14T10:30:45.123456"
+  },
+  {
+    "id": 2,
+    "product_code": "AMUL",
+    "description": "Dairy products",
+    "created_at": "2026-05-14T10:31:20.654321"
+  }
+]
+```
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/product-codes/?skip=0&limit=50
+Method: GET
+```
+
+---
+
+### 🔍 Search Product Codes
+**GET** `/product-codes/search/`
+
+**Description:** Search product codes by partial name.
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `q` | string | ✅ Yes | Partial product code (min 1 char) |
+| `skip` | integer | ❌ No | Skip records (default: 0) |
+| `limit` | integer | ❌ No | Limit results (default: 50) |
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "product_code": "PEPSI",
+    "description": "Cola beverages",
+    "created_at": "2026-05-14T10:30:45.123456"
+  }
+]
+```
+
+**Error Responses:**
+- **422** - Missing or invalid `q` parameter
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/product-codes/search/?q=PEP
+Method: GET
+```
+
+---
+
+### 🎯 Get Product Code by Code
+**GET** `/product-codes/by-code/{product_code}`
+
+**Description:** Fetch a specific product code by name.
+
+**Path Parameters:**
+| Parameter | Type | Description |
 |---|---|---|
-| POST | `/products/` | Create product |
-| POST | `/products/bulk` | Bulk create products |
-| GET | `/products/` | List products |
-| GET | `/products/search/` | Search products |
-| GET | `/products/by-name/{product_name}` | Get by name |
-| GET | `/products/{product_id}` | Get by id |
-| PUT | `/products/by-name/{product_name}` | Update by name |
-| PUT | `/products/{product_id}` | Update by id |
-| DELETE | `/products/by-name/{product_name}` | Delete by name |
-| DELETE | `/products/{product_id}` | Delete by id |
+| `product_code` | string | Product code name (e.g., "PEPSI") |
 
-### Models
+**Response (200):**
+```json
+{
+  "id": 1,
+  "product_code": "PEPSI",
+  "description": "Cola beverages",
+  "created_at": "2026-05-14T10:30:45.123456"
+}
+```
 
-| Method | Endpoint | Description |
+**Error Responses:**
+- **404** - Product code not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/product-codes/by-code/PEPSI
+Method: GET
+```
+
+---
+
+### 🎯 Get Product Code by ID
+**GET** `/product-codes/{code_id}`
+
+**Description:** Fetch a specific product code by numeric ID.
+
+**Path Parameters:**
+| Parameter | Type | Description |
 |---|---|---|
-| POST | `/models/` | Register model |
-| GET | `/models/` | List models |
-| GET | `/models/by-product-code/{product_code_id}` | Models by product code |
-| GET | `/models/by-name/{model_name}` | Get by name |
-| GET | `/models/{model_id}` | Get by id |
-| PUT | `/models/by-name/{model_name}` | Update by name |
-| PUT | `/models/{model_id}` | Update by id |
-| DELETE | `/models/by-name/{model_name}` | Delete by name |
-| DELETE | `/models/{model_id}` | Delete by id |
+| `code_id` | integer | Product code ID |
 
-### Audit
+**Response (200):**
+```json
+{
+  "id": 1,
+  "product_code": "PEPSI",
+  "description": "Cola beverages",
+  "created_at": "2026-05-14T10:30:45.123456"
+}
+```
 
-| Method | Endpoint | Description |
+**Error Responses:**
+- **404** - Product code not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/product-codes/1
+Method: GET
+```
+
+---
+
+### ✏️ Update Product Code
+**PUT** `/product-codes/by-code/{product_code}`
+
+**Description:** Update a product code and/or its description.
+
+**Path Parameters:**
+| Parameter | Type | Description |
 |---|---|---|
-| GET | `/audit/` | List audits |
-| GET | `/audit/by-code` | Submit audit by image URL |
-| POST | `/audit/by-code/upload` | Submit audit by file upload |
-| GET | `/audit/{audit_id}` | Poll audit status/result |
-| WS | `/audit/ws/{audit_id}` | Real-time status stream |
-| GET | `/audit/image/{filename}` | Serve annotated image |
+| `product_code` | string | Current product code name |
+
+**Request Body:**
+```json
+{
+  "product_code": "PEPSI_COLA",
+  "description": "Updated description"
+}
+```
+
+| Field | Type | Required |
+|---|---|---|
+| `product_code` | string | ❌ No |
+| `description` | string | ❌ No |
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "product_code": "PEPSI_COLA",
+  "description": "Updated description",
+  "created_at": "2026-05-14T10:30:45.123456"
+}
+```
+
+**Error Responses:**
+- **400** - New product code already exists
+- **404** - Product code not found
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/product-codes/by-code/PEPSI
+Method: PUT
+Headers: Content-Type: application/json
+Body:
+{
+  "description": "Updated cola beverages"
+}
+```
+
+---
+
+### ✏️ Update Product Code by ID
+**PUT** `/product-codes/{code_id}`
+
+**Description:** Update a product code by its numeric ID.
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `code_id` | integer | Product code ID |
+
+**Request Body:**
+```json
+{
+  "product_code": "PEPSI_COLA",
+  "description": "Updated description"
+}
+```
+
+| Field | Type | Required |
+|---|---|---|
+| `product_code` | string | ❌ No |
+| `description` | string | ❌ No |
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "product_code": "PEPSI_COLA",
+  "description": "Updated description",
+  "created_at": "2026-05-14T10:30:45.123456"
+}
+```
+
+**Error Responses:**
+- **400** - New product code already exists
+- **404** - Product code not found
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/product-codes/1
+Method: PUT
+Headers: Content-Type: application/json
+Body:
+{
+  "product_code": "PEPSI_COLA"
+}
+```
+
+---
+
+### 🗑️ Delete Product Code
+**DELETE** `/product-codes/by-code/{product_code}`
+
+**Description:** Delete a product code.
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `product_code` | string | Product code to delete |
+
+**Response (200):**
+```json
+{
+  "message": "Product code deleted successfully"
+}
+```
+
+**Error Responses:**
+- **404** - Product code not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/product-codes/by-code/PEPSI
+Method: DELETE
+```
+
+---
+
+### 🗑️ Delete Product Code by ID
+**DELETE** `/product-codes/{code_id}`
+
+**Description:** Delete a product code by its numeric ID.
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `code_id` | integer | Product code ID |
+
+**Response (200):**
+```json
+{
+  "message": "Product code deleted successfully"
+}
+```
+
+**Error Responses:**
+- **404** - Product code not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/product-codes/1
+Method: DELETE
+```
+
+---
+
+## 📦 Products API
+
+Manage individual products linked to product codes.
+
+### ✅ Create Single Product
+**POST** `/products/`
+
+**Description:** Create a new product (e.g., "Pepsi 250ml").
+
+**Request Body:**
+```json
+{
+  "product_code_id": 1,
+  "product_name": "Pepsi 250ml",
+  "brand": "Pepsi",
+  "category": "Beverages",
+  "ai_code": "pepsi_250ml",
+  "type": "competitor"
+}
+```
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `product_code_id` | integer | ✅ Yes | Must be valid product code ID |
+| `product_name` | string | ✅ Yes | 1-100 chars, must be unique |
+| `brand` | string | ❌ No | Max 100 chars |
+| `category` | string | ❌ No | Max 100 chars |
+| `ai_code` | string | ❌ No | Max 50 chars (internal AI reference) |
+| `type` | enum | ❌ No | `"own"` or `"competitor"` |
+
+**Response (201):**
+```json
+{
+  "id": 1,
+  "product_code_id": 1,
+  "product_name": "Pepsi 250ml",
+  "brand": "Pepsi",
+  "category": "Beverages",
+  "ai_code": "pepsi_250ml",
+  "type": "competitor",
+  "created_at": "2026-05-14T10:35:22.123456"
+}
+```
+
+**Error Responses:**
+- **400** - Invalid `product_code_id` or product already exists
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/products/
+Method: POST
+Headers: Content-Type: application/json
+Body:
+{
+  "product_code_id": 1,
+  "product_name": "Pepsi 250ml",
+  "brand": "Pepsi",
+  "category": "Beverages",
+  "type": "competitor"
+}
+```
+
+---
+
+### 📦 Bulk Create Products
+**POST** `/products/bulk`
+
+**Description:** Create multiple products at once. Validates all items first, then atomically commits (all or nothing).
+
+**Request Body:**
+```json
+[
+  {
+    "product_code_id": 1,
+    "product_name": "Pepsi 250ml",
+    "brand": "Pepsi",
+    "category": "Beverages",
+    "type": "competitor"
+  },
+  {
+    "product_code_id": 1,
+    "product_name": "Coca-Cola 250ml",
+    "brand": "Coca-Cola",
+    "category": "Beverages",
+    "type": "competitor"
+  }
+]
+```
+
+**Response (201):**
+```json
+{
+  "created": [
+    {
+      "id": 1,
+      "product_code_id": 1,
+      "product_name": "Pepsi 250ml",
+      "brand": "Pepsi",
+      "category": "Beverages",
+      "type": "competitor",
+      "created_at": "2026-05-14T10:36:10.123456"
+    },
+    {
+      "id": 2,
+      "product_code_id": 1,
+      "product_name": "Coca-Cola 250ml",
+      "brand": "Coca-Cola",
+      "category": "Beverages",
+      "type": "competitor",
+      "created_at": "2026-05-14T10:36:10.654321"
+    }
+  ],
+  "skipped": []
+}
+```
+
+**Response with Duplicates (201):**
+```json
+{
+  "created": [
+    {
+      "id": 1,
+      "product_code_id": 1,
+      "product_name": "Pepsi 250ml",
+      ...
+    }
+  ],
+  "skipped": ["Coca-Cola 250ml"]
+}
+```
+
+**Error Responses:**
+- **400** - Invalid `product_code_id` for one or more items
+- **500** - Transaction rollback (all changes reverted)
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/products/bulk
+Method: POST
+Headers: Content-Type: application/json
+Body (raw JSON array):
+[
+  {
+    "product_code_id": 1,
+    "product_name": "Sprite 250ml",
+    "brand": "Sprite",
+    "category": "Beverages"
+  },
+  {
+    "product_code_id": 1,
+    "product_name": "Fanta 250ml",
+    "brand": "Fanta",
+    "category": "Beverages"
+  }
+]
+```
+
+---
+
+### 📋 List All Products
+**GET** `/products/`
+
+**Description:** Get all products with pagination.
+
+**Query Parameters:**
+| Parameter | Type | Default |
+|---|---|---|
+| `skip` | integer | 0 |
+| `limit` | integer | 50 |
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "product_code_id": 1,
+    "product_name": "Pepsi 250ml",
+    "brand": "Pepsi",
+    "category": "Beverages",
+    "type": "competitor",
+    "created_at": "2026-05-14T10:35:22.123456"
+  }
+]
+```
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/products/?skip=0&limit=50
+Method: GET
+```
+
+---
+
+### 🔍 Search Products
+**GET** `/products/search/`
+
+**Description:** Advanced search with multiple filter options.
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `product_code_id` | integer | Filter by product code ID |
+| `name` | string | Partial product name search |
+| `brand` | string | Partial brand search |
+| `category` | string | Partial category search |
+| `type` | string | Filter: `"own"` or `"competitor"` |
+| `skip` | integer | Skip records (default: 0) |
+| `limit` | integer | Limit results (default: 50) |
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "product_code_id": 1,
+    "product_name": "Pepsi 250ml",
+    "brand": "Pepsi",
+    "category": "Beverages",
+    "type": "competitor",
+    "created_at": "2026-05-14T10:35:22.123456"
+  }
+]
+```
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/products/search/?product_code_id=1&brand=Pepsi&type=competitor
+Method: GET
+```
+
+---
+
+### ✏️ Update Product
+**PUT** `/products/{product_id}`
+
+**Description:** Update a product by ID.
+
+**Path Parameters:**
+| Parameter | Type |
+|---|---|
+| `product_id` | integer |
+
+**Request Body:** (all fields optional)
+```json
+{
+  "product_name": "Pepsi 500ml",
+  "brand": "Pepsi",
+  "category": "Beverages",
+  "type": "own"
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "product_code_id": 1,
+  "product_name": "Pepsi 500ml",
+  "brand": "Pepsi",
+  "category": "Beverages",
+  "type": "own",
+  "created_at": "2026-05-14T10:35:22.123456"
+}
+```
+
+**Error Responses:**
+- **400** - Duplicate product name or invalid `product_code_id`
+- **404** - Product not found
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/products/1
+Method: PUT
+Headers: Content-Type: application/json
+Body:
+{
+  "product_name": "Pepsi 500ml"
+}
+```
+
+---
+
+### 🗑️ Delete Product
+**DELETE** `/products/{product_id}`
+
+**Description:** Delete a product by ID.
+
+**Path Parameters:**
+| Parameter | Type |
+|---|---|
+| `product_id` | integer |
+
+**Response (200):**
+```json
+{
+  "message": "Product deleted successfully"
+}
+```
+
+**Error Responses:**
+- **404** - Product not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/products/1
+Method: DELETE
+```
+
+---
+
+## ⚙️ Models API
+
+Manage YOLO detection models.
+
+### ✅ Create/Register Model
+**POST** `/models/`
+
+**Description:** Register a YOLO model for a product code.
+
+**Request Body:**
+```json
+{
+  "product_code_id": 1,
+  "model_name": "yolo26m",
+  "model_path": "ml_models/yolo26m.pt",
+  "image_size": 640,
+  "conf_threshold": 0.25,
+  "iou_threshold": 0.45
+}
+```
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `product_code_id` | integer | ✅ Yes | Valid product code ID |
+| `model_name` | string | ✅ Yes | 1-100 chars, unique per product code |
+| `model_path` | string | ✅ Yes | 1-500 chars (path to .pt file) |
+| `image_size` | integer | ❌ No | 320-2048 (default: 1280) |
+| `conf_threshold` | float | ❌ No | 0.0-1.0 (default: 0.25) |
+| `iou_threshold` | float | ❌ No | 0.0-1.0 (default: 0.45) |
+
+**Response (201):**
+```json
+{
+  "id": 1,
+  "product_code_id": 1,
+  "model_name": "yolo26m",
+  "model_path": "ml_models/yolo26m.pt",
+  "image_size": 640,
+  "conf_threshold": 0.25,
+  "iou_threshold": 0.45,
+  "created_at": "2026-05-14T10:40:00.123456"
+}
+```
+
+**Error Responses:**
+- **400** - Invalid `product_code_id` or model already exists
+- **422** - Validation error (threshold out of range, etc.)
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/models/
+Method: POST
+Headers: Content-Type: application/json
+Body:
+{
+  "product_code_id": 1,
+  "model_name": "yolo_v8_large",
+  "model_path": "ml_models/yolov8l.pt",
+  "image_size": 800,
+  "conf_threshold": 0.3,
+  "iou_threshold": 0.5
+}
+```
+
+---
+
+### 📋 List All Models
+**GET** `/models/`
+
+**Description:** Get all registered models with pagination.
+
+**Query Parameters:**
+| Parameter | Type | Default |
+|---|---|---|
+| `skip` | integer | 0 |
+| `limit` | integer | 50 |
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "product_code_id": 1,
+    "model_name": "yolo26m",
+    "model_path": "ml_models/yolo26m.pt",
+    "image_size": 640,
+    "conf_threshold": 0.25,
+    "iou_threshold": 0.45,
+    "created_at": "2026-05-14T10:40:00.123456"
+  }
+]
+```
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/models/?skip=0&limit=50
+Method: GET
+```
+
+---
+
+### 🔎 Get Model by Name
+**GET** `/models/by-name/{model_name}`
+
+**Description:** Fetch a model by its name.
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `model_name` | string | Model name |
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "product_code_id": 1,
+  "model_name": "yolo26m",
+  "model_path": "ml_models/yolo26m.pt",
+  "image_size": 640,
+  "conf_threshold": 0.25,
+  "iou_threshold": 0.45,
+  "created_at": "2026-05-14T10:40:00.123456"
+}
+```
+
+**Error Responses:**
+- **404** - Model not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/models/by-name/yolo26m
+Method: GET
+```
+
+---
+
+### ✏️ Update Model by Name
+**PUT** `/models/by-name/{model_name}`
+
+**Description:** Update a model record by its name.
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `model_name` | string | Model name |
+
+**Request Body:** (all fields optional)
+```json
+{
+  "product_code_id": 1,
+  "model_path": "ml_models/yolo26m.pt",
+  "conf_threshold": 0.30
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "product_code_id": 1,
+  "model_name": "yolo26m",
+  "model_path": "ml_models/yolo26m.pt",
+  "image_size": 640,
+  "conf_threshold": 0.30,
+  "iou_threshold": 0.45,
+  "created_at": "2026-05-14T10:40:00.123456"
+}
+```
+
+**Error Responses:**
+- **400** - Invalid `product_code_id` or duplicate model
+- **404** - Model not found
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/models/by-name/yolo26m
+Method: PUT
+Headers: Content-Type: application/json
+Body:
+{
+  "conf_threshold": 0.35
+}
+```
+
+---
+
+### ✏️ Update Model by ID
+**PUT** `/models/{model_id}`
+
+**Description:** Update a model record by its numeric ID.
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `model_id` | integer | Model ID |
+
+**Request Body:** (all fields optional)
+```json
+{
+  "conf_threshold": 0.30,
+  "iou_threshold": 0.50
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "product_code_id": 1,
+  "model_name": "yolo26m",
+  "model_path": "ml_models/yolo26m.pt",
+  "image_size": 640,
+  "conf_threshold": 0.30,
+  "iou_threshold": 0.50,
+  "created_at": "2026-05-14T10:40:00.123456"
+}
+```
+
+**Error Responses:**
+- **400** - Invalid `product_code_id` or duplicate model
+- **404** - Model not found
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/models/1
+Method: PUT
+Headers: Content-Type: application/json
+Body:
+{
+  "conf_threshold": 0.35
+}
+```
+
+---
+
+### 🗑️ Delete Model by ID
+**DELETE** `/models/{model_id}`
+
+**Description:** Delete a model by its numeric ID.
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `model_id` | integer | Model ID |
+
+**Response (200):**
+```json
+{
+  "message": "Model deleted successfully"
+}
+```
+
+**Error Responses:**
+- **404** - Model not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/models/1
+Method: DELETE
+```
+
+---
+
+### 🔍 Get Models by Product Code
+**GET** `/models/by-product-code/{product_code_id}`
+
+**Description:** Get all models linked to a specific product code.
+
+**Path Parameters:**
+| Parameter | Type |
+|---|---|
+| `product_code_id` | integer |
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "product_code_id": 1,
+    "model_name": "yolo26m",
+    "model_path": "ml_models/yolo26m.pt",
+    "image_size": 640,
+    "conf_threshold": 0.25,
+    "iou_threshold": 0.45,
+    "created_at": "2026-05-14T10:40:00.123456"
+  }
+]
+```
+
+**Error Responses:**
+- **404** - Product code not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/models/by-product-code/1
+Method: GET
+```
+
+---
+
+### ✏️ Update Model
+**PUT** `/models/{model_id}`
+
+**Description:** Update model parameters.
+
+**Path Parameters:**
+| Parameter | Type |
+|---|---|
+| `model_id` | integer |
+
+**Request Body:** (all fields optional)
+```json
+{
+  "conf_threshold": 0.30,
+  "iou_threshold": 0.50
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "product_code_id": 1,
+  "model_name": "yolo26m",
+  "model_path": "ml_models/yolo26m.pt",
+  "image_size": 640,
+  "conf_threshold": 0.30,
+  "iou_threshold": 0.50,
+  "created_at": "2026-05-14T10:40:00.123456"
+}
+```
+
+**Error Responses:**
+- **400** - Invalid values or duplicate model
+- **404** - Model not found
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/models/1
+Method: PUT
+Headers: Content-Type: application/json
+Body:
+{
+  "conf_threshold": 0.35
+}
+```
+
+---
+
+### 🗑️ Delete Model
+**DELETE** `/models/by-name/{model_name}`
+
+**Description:** Delete a model by name.
+
+**Path Parameters:**
+| Parameter | Type |
+|---|---|
+| `model_name` | string |
+
+**Response (200):**
+```json
+{
+  "message": "Model deleted successfully"
+}
+```
+
+**Error Responses:**
+- **404** - Model not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/models/by-name/yolo26m
+Method: DELETE
+```
+
+---
+
+## 📊 Audit API
+
+Submit shelf audit jobs and retrieve results.
+
+### 📝 List Audits
+**GET** `/audit/`
+
+**Description:** List all audits with optional filtering.
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `product_code` | string | Filter by product code (partial match) |
+| `status` | string | Filter: `"pending"`, `"processing"`, `"completed"`, `"failed"` |
+| `skip` | integer | Skip records (default: 0) |
+| `limit` | integer | Limit results (default: 50) |
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "audit_id": 1,
+    "product_code": "PEPSI",
+    "status": "completed",
+    "created_at": "2026-05-14T10:45:00.123456",
+    "error_message": null
+  },
+  {
+    "id": 2,
+    "audit_id": 2,
+    "product_code": "PEPSI",
+    "status": "pending",
+    "created_at": "2026-05-14T10:46:15.654321",
+    "error_message": null
+  }
+]
+```
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/audit/?product_code=PEPSI&status=completed&limit=20
+Method: GET
+```
+
+---
+
+### 🔥 Submit Audit (Image URL)
+**GET** `/audit/by-code`
+
+**Description:** Submit a shelf audit using a public image URL. Rate limited: 10 requests/minute per IP.
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `product_code` | string | ✅ Yes | Product code (2+ chars) |
+| `image_url` | string | ✅ Yes | Public image URL or `file://` path |
+
+**Response (200):**
+```json
+{
+  "audit_id": 1,
+  "status": "pending",
+  "message": "Audit job queued"
+}
+```
+
+**Error Responses:**
+- **400** - Invalid product code
+- **429** - Rate limit exceeded (10 req/min per IP)
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/audit/by-code?product_code=PEPSI&image_url=https://example.com/shelf.jpg
+Method: GET
+```
+
+**Alternative with local file:**
+```
+URL: http://localhost:8000/api/v1/audit/by-code?product_code=PEPSI&image_url=file:///path/to/image.jpg
+Method: GET
+```
+
+---
+
+### 📤 Submit Audit (File Upload)
+**POST** `/audit/by-code/upload`
+
+**Description:** Submit a shelf audit using file upload. Rate limited: 10 requests/minute per IP.
+
+**Form Parameters:**
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `product_code` | string | ✅ Yes | Product code |
+| `file` | file | ✅ Yes | Image file (JPG, PNG) |
+
+**Response (200):**
+```json
+{
+  "audit_id": 2,
+  "status": "pending",
+  "message": "Audit job queued"
+}
+```
+
+**Error Responses:**
+- **400** - Invalid product code or empty file
+- **429** - Rate limit exceeded
+- **422** - Validation error
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/audit/by-code/upload
+Method: POST
+Headers: (auto-set multipart/form-data)
+Form Data:
+  - product_code (text): PEPSI
+  - file (file): [select image file]
+```
+
+---
+
+### ✅ Get Audit Status & Result
+**GET** `/audit/{audit_id}`
+
+**Description:** Poll audit status and retrieve results when complete. Cached for 30 minutes after completion.
+
+**Path Parameters:**
+| Parameter | Type |
+|---|---|
+| `audit_id` | integer |
+
+**Response - Pending (200):**
+```json
+{
+  "audit_id": 1,
+  "status": "pending",
+  "error_message": null
+}
+```
+
+**Response - Completed (200):**
+```json
+{
+  "audit_id": 1,
+  "status": "completed",
+  "error_message": null,
+  "result_json": {
+    "product_image_url": "http://localhost:8000/api/v1/audit/image/annotated_abc123.jpg",
+    "image_name": "annotated_abc123.jpg",
+    "detected_products": [
+      {
+        "name": "Pepsi 250ml",
+        "confidence": 0.95,
+        "count": 3
+      }
+    ],
+    "total_product_count": 5,
+    "total_self_count": 3,
+    "total_competition_count": 2,
+    "brand_counts": [
+      {"brand": "Pepsi", "count": 3},
+      {"brand": "Coca-Cola", "count": 2}
+    ],
+    "detection_coordinates": [
+      {"x": 100, "y": 150, "width": 50, "height": 80}
+    ]
+  }
+}
+```
+
+**Response - Failed (200):**
+```json
+{
+  "audit_id": 1,
+  "status": "failed",
+  "error_message": "Model not found for product code"
+}
+```
+
+**Error Responses:**
+- **404** - Audit not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/audit/1
+Method: GET
+```
+
+---
+
+### 🌐 WebSocket: Real-time Status Updates
+**WS** `/audit/ws/{audit_id}`
+
+**Description:** Connect to WebSocket for real-time audit status updates.
+
+**Connection:**
+```
+ws://localhost:8000/api/v1/audit/ws/1
+```
+
+**Message Sequence:**
+```
+1. Client connects to WS
+2. Server sends: {"status": "pending", "message": "Processing..."}
+3. Worker processes...
+4. Server sends: {"status": "completed", "result_json": {...}}
+5. Connection closes or client disconnects
+```
+
+**Sample Message:**
+```json
+{
+  "status": "processing",
+  "message": "Running YOLO inference...",
+  "progress": 45
+}
+```
+
+**Postman Example:**
+1. Go to "New" → "WebSocket Request"
+2. Enter URL: `ws://localhost:8000/api/v1/audit/ws/1`
+3. Click "Connect"
+4. View incoming messages in real-time
+
+---
+
+### 📥 Download Annotated Image
+**GET** `/audit/image/{filename}`
+
+**Description:** Download the annotated detection image from a completed audit.
+
+**Path Parameters:**
+| Parameter | Type |
+|---|---|
+| `filename` | string |
+
+**Response (200):** Binary image file
+
+**Error Responses:**
+- **404** - Image not found
+
+**Postman Example:**
+```
+URL: http://localhost:8000/api/v1/audit/image/annotated_abc123.jpg
+Method: GET
+(Response will be the image file - preview in browser or save)
+```
+
+---
+
+## 📚 Error Response Format
+
+All errors follow this consistent format:
+
+**4xx/5xx Error Response:**
+```json
+{
+  "detail": "Error description explaining what went wrong"
+}
+```
+
+**Common Status Codes:**
+
+| Code | Meaning | Example |
+|---|---|---|
+| **200** | ✅ Success | Request completed successfully |
+| **201** | ✅ Created | Resource created successfully |
+| **400** | ❌ Bad Request | Invalid input data or business logic error |
+| **404** | ❌ Not Found | Resource doesn't exist |
+| **422** | ❌ Validation Error | Invalid data type or format |
+| **429** | ⚠️ Rate Limited | Too many requests (audit endpoints: 10/min per IP) |
+| **500** | ❌ Server Error | Internal error (transaction rollback, etc.) |
+
+---
+
+## 🚀 How to Use APIs with Postman
+
+### Step 1: Setup Postman Environment
+
+1. **Open Postman** and create a new **Environment**
+2. Add these variables:
+   ```
+   base_url: http://localhost:8000/api/v1
+   product_code_id: 1
+   product_id: 1
+   model_id: 1
+   audit_id: 1
+   ```
+
+3. **In your requests, use:** `{{base_url}}` instead of hardcoding URL
+
+### Step 2: Test Workflow
+
+1. **Create Product Code**
+   - POST `{{base_url}}/product-codes/`
+   - Body: `{"product_code": "DEMO", "description": "Demo"}`
+   - Save the response ID → update `product_code_id` variable
+
+2. **Create Product**
+   - POST `{{base_url}}/products/`
+   - Body: `{"product_code_id": {{product_code_id}}, "product_name": "Demo Product", ...}`
+   - Save response ID → update `product_id` variable
+
+3. **Register Model**
+   - POST `{{base_url}}/models/`
+   - Body: `{"product_code_id": {{product_code_id}}, "model_name": "yolo26m", ...}`
+   - Save response ID → update `model_id` variable
+
+4. **Submit Audit**
+   - GET `{{base_url}}/audit/by-code?product_code=DEMO&image_url=https://example.com/image.jpg`
+   - Save response `audit_id` → update variable
+
+5. **Poll Status**
+   - GET `{{base_url}}/audit/{{audit_id}}`
+   - Repeat until `status` = "completed"
+
+6. **Download Result Image**
+   - Extract `product_image_url` from audit result
+   - GET that URL to download the annotated image
+
+### Step 3: Advanced Features
+
+- **Bulk Import:** Use Postman's "Collections" feature to import a pre-built collection
+- **Tests:** Add test scripts to auto-validate responses
+- **Monitoring:** Set up Postman Monitor for scheduled API checks
 
 ## 🔐 Environment Variables
 
