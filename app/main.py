@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -9,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.v1.router import api_router
+from app.core.metrics import metrics_endpoint, track_requests, ACTIVE_CONNECTIONS
 from app.core.config import settings
 from app.core.database import engine, Base, get_db, get_database_status
 from app.core.context import set_request_id
@@ -29,6 +31,21 @@ async def request_id_middleware(request: Request, call_next):
     set_request_id(rid)  # generates UUID if header absent
     response = await call_next(request)
     response.headers["X-Request-ID"] = request.headers.get("X-Request-ID", "-")
+    return response
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """Track request metrics"""
+    start_time = time.time()
+    ACTIVE_CONNECTIONS.inc()
+
+    response = await call_next(request)
+
+    process_time = time.time() - start_time
+    track_requests(request, response, process_time)
+    ACTIVE_CONNECTIONS.dec()
+
     return response
 
 
@@ -74,6 +91,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(api_router, prefix="/api/v1")
+
+# Metrics endpoint for Prometheus
+@app.get("/metrics")
+async def get_metrics(request: Request):
+	"""Prometheus metrics endpoint"""
+	return await metrics_endpoint(request)
 
 # Serve annotated output images at /images/...
 # e.g. outputs/audit/file.jpg → http://host/images/audit/file.jpg

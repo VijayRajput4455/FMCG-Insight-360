@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,9 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except HTTPException:
+        # HTTP exceptions (like 429 rate limiting) are expected - don't log as errors
+        raise
     except Exception:
         logger.exception("Unhandled DB session error")
         raise

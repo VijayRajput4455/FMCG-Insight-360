@@ -1,0 +1,79 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "FMCG Insight 360 - Monitoring",
+    "tags": ["fmcg", "monitoring"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(fmcg_requests_total[5m])",
+            "legendFormat": "{{method}} {{endpoint}}",
+            "datasource": "Prometheus"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Response Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(fmcg_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile",
+            "datasource": "Prometheus"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Rate Limit Violations",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(fmcg_rate_limit_exceeded_total[5m])",
+            "legendFormat": "{{endpoint}} - {{ip}}",
+            "datasource": "Prometheus"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Audit Requests",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(fmcg_audit_requests_total[5m])",
+            "legendFormat": "{{product_code}} - {{status}}",
+            "datasource": "Prometheus"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Error Logs",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"fmcg_app\"} |= `ERROR`",
+            "datasource": "Loki"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

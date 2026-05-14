@@ -1,0 +1,32 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: fmcg_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: fmcg_app
+          __path__: /var/log/fmcg/*.log
+    pipeline_stages:
+      - match:
+          selector: '{job="fmcg_app"}'
+          stages:
+            - regex:
+                expression: '^\[(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})\] \| level=(?P<level>\w+) \| request_id=(?P<request_id>[^\|]+) \| module=(?P<module>[^\|]+) \| function=(?P<function>[^\|]+) \| line=(?P<line>\d+) \| message=(?P<message>.+)$'
+            - labels:
+                level:
+                module:
+                function:
+                request_id:
+            - timestamp:
+                source: timestamp
+                format: '2006-01-02 15:04:05,000'
