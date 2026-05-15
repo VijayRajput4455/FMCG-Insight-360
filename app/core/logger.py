@@ -22,7 +22,7 @@ class _RequestIdFilter(logging.Filter):
 def setup_logging(
     level: str = "INFO",
     log_dir: str = "logs",
-    log_file: str = "app.log",
+    log_file: str = "FMCG-Insight-360.log",
 ) -> None:
     """Configure process-wide logging once (console + rotating file)."""
     global _configured
@@ -37,6 +37,7 @@ def setup_logging(
 
         # Console handler
         console_handler = logging.StreamHandler()
+        console_handler.setLevel(numeric_level)
         console_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
         console_handler.addFilter(request_filter)
 
@@ -49,6 +50,7 @@ def setup_logging(
             backupCount=5,
             encoding="utf-8",
         )
+        file_handler.setLevel(numeric_level)
         file_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
         file_handler.addFilter(request_filter)
 
@@ -56,6 +58,7 @@ def setup_logging(
         root.setLevel(numeric_level)
         root.addHandler(console_handler)
         root.addHandler(file_handler)
+        logging.captureWarnings(True)
 
         _configured = True
 

@@ -1,6 +1,6 @@
-import logging
 import os
 import time
+import asyncio
 
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -9,12 +9,13 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.services.metrics_worker import db_metrics_worker
 from app.api.v1.router import api_router
 from app.core.metrics import metrics_endpoint, track_requests, ACTIVE_CONNECTIONS
 from app.core.config import settings
 from app.core.database import engine, Base, get_db, get_database_status
 from app.core.context import set_request_id
-from app.core.logger import setup_logging
+from app.core.logger import get_logger, setup_logging
 from app.models import *  # register all models
 from app.schemas.error import ErrorResponse
 from app.workers.worker import start_worker_in_background, get_worker_runtime_status
@@ -22,15 +23,15 @@ from app.workers.worker import start_worker_in_background, get_worker_runtime_st
 setup_logging(settings.LOG_LEVEL, log_dir=settings.LOG_DIR, log_file=settings.LOG_FILE)
 
 app = FastAPI(title="FMCG Insight 360")
-logger = logging.getLogger("uvicorn.error")
+logger = get_logger(__name__)
 
 
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
     rid = request.headers.get("X-Request-ID")
-    set_request_id(rid)  # generates UUID if header absent
+    request_id = set_request_id(rid)  # generates UUID if header absent
     response = await call_next(request)
-    response.headers["X-Request-ID"] = request.headers.get("X-Request-ID", "-")
+    response.headers["X-Request-ID"] = request_id
     return response
 
 
@@ -51,6 +52,13 @@ async def metrics_middleware(request: Request, call_next):
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code >= 500:
+        logger.error("HTTPException %s %s %s", exc.status_code, request.url, exc.detail)
+    elif exc.status_code >= 400:
+        logger.warning("HTTPException %s %s %s", exc.status_code, request.url, exc.detail)
+    else:
+        logger.info("HTTPException %s %s %s", exc.status_code, request.url, exc.detail)
+
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
@@ -64,6 +72,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
+    logger.warning("Validation error on %s %s: %s", request.method, request.url, errors)
     message = errors[0]["msg"] if errors else "Validation error"
     details = str(errors) if len(errors) > 1 else None
     return JSONResponse(
@@ -108,17 +117,25 @@ app.mount("/images", StaticFiles(directory="outputs"), name="images")
 # Create tables (DEV ONLY - remove later for Alembic)
 Base.metadata.create_all(bind=engine)
 
-
 @app.on_event("startup")
-def startup_db_check():
+async def startup_db_check():
+
     ok, message = get_database_status()
+
     if ok:
         logger.info(message)
     else:
         logger.error(message)
 
+    # Start DB metrics background worker
+    asyncio.create_task(db_metrics_worker())
+
+    logger.info("DB metrics worker started")
+
     if settings.AUTO_START_WORKER:
+
         started = start_worker_in_background()
+
         if started:
             logger.info("Embedded audit worker started (AUTO_START_WORKER=true)")
         else:
