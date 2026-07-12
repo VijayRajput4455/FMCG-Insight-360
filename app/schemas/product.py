@@ -9,6 +9,20 @@ class ProductType(str, Enum):
     COMPETITOR = "competitor"
 
 
+def _normalize_product_type(value):
+    if value is None:
+        return value
+    if isinstance(value, ProductType):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized == "own":
+            return ProductType.SELF
+        if normalized in {"self", "competitor"}:
+            return normalized
+    return value
+
+
 class ProductCreate(BaseModel):
     product_code_id: int
     product_name: str = Field(..., min_length=1, max_length=100)
@@ -16,6 +30,11 @@ class ProductCreate(BaseModel):
     category: Optional[str] = Field(None, max_length=100)
     ai_code: Optional[str] = Field(None, max_length=50)
     type: Optional[ProductType] = None
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def normalize_type(cls, value):
+        return _normalize_product_type(value)
 
 
 class ProductUpdate(BaseModel):
@@ -25,6 +44,11 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = Field(None, max_length=100)
     ai_code: Optional[str] = Field(None, max_length=50)
     type: Optional[ProductType] = None
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def normalize_type(cls, value):
+        return _normalize_product_type(value)
 
 
 class ProductResponse(BaseModel):
@@ -36,6 +60,11 @@ class ProductResponse(BaseModel):
     ai_code: Optional[str]
     type: Optional[ProductType]
     created_at: datetime
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def normalize_type(cls, value):
+        return _normalize_product_type(value)
 
     class Config:
         from_attributes = True

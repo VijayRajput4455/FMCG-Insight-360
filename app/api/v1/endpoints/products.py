@@ -128,7 +128,7 @@ def _build_csv_template() -> bytes:
             "brand": "Sample Brand",
             "category": "Beverages",
             "ai_code": "AI-001",
-            "type": "own",
+            "type": "self",
         }
     )
     
@@ -155,7 +155,7 @@ def _build_xlsx_template() -> bytes:
     sheet = workbook.active
     sheet.title = "products_template"
     sheet.append(["product_code_id", "product_name", "brand", "category", "ai_code", "type"])
-    sheet.append([1, "Sample Product A", "Sample Brand", "Beverages", "AI-001", "own"])
+    sheet.append([1, "Sample Product A", "Sample Brand", "Beverages", "AI-001", "self"])
     sheet.append([2, "Sample Product B", "Comp Brand", "Snacks", "AI-002", "competitor"])
 
     buffer = BytesIO()
@@ -356,7 +356,7 @@ def search_products(
     name: str = Query(None, description="Partial product name"),
     brand: str = Query(None, description="Partial brand name"),
     category: str = Query(None, description="Partial category"),
-    type: str = Query(None, description="own / competitor"),
+    type: str = Query(None, description="self / competitor"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, le=200),
     db: Session = Depends(get_db)
@@ -371,7 +371,13 @@ def search_products(
     if category:
         q = q.filter(Product.category.ilike(f"%{category}%"))
     if type:
-        q = q.filter(Product.type == type)
+        normalized_type = type.strip().lower()
+        if normalized_type == "self":
+            q = q.filter(Product.type.in_(["self", "own"]))
+        elif normalized_type == "own":
+            q = q.filter(Product.type == "own")
+        else:
+            q = q.filter(Product.type == normalized_type)
     return q.offset(skip).limit(limit).all()
 
 
