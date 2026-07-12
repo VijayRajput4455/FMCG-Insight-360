@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: fmcg-api
+    gpus: all
     env_file:
       - .env.docker
     ports:
@@ -27,6 +28,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: fmcg-worker
+    gpus: all
     command: ["python", "-m", "app.workers.worker"]
     env_file:
       - .env.docker

@@ -1,5 +1,6 @@
 import logging
 
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
@@ -30,6 +31,8 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Unhandled DB session error")
         raise

@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 
 import cv2
+import torch
 from sqlalchemy.orm import Session
 
 from app.models.product import Product
@@ -11,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class InferenceService:
+    def _get_prediction_device(self) -> str:
+        return "cuda:0" if torch.cuda.is_available() else "cpu"
+
     def _read_image(self, image_path: str):
         image = cv2.imread(image_path)
         if image is None:
@@ -64,13 +68,15 @@ class InferenceService:
                 return image, {"ERROR-Invalid Product Code": 0}, 0, []
 
             logger.info("Valid products for '%s': %s", product_code, valid_product_names)
-            logger.info("Running inference...")
+            device = self._get_prediction_device()
+            logger.info("Running inference on %s...", device)
 
             results = model.predict(
                 source=image,
                 imgsz=image_size,
                 conf=conf_thres,
                 iou=iou_thres,
+                device=device,
                 verbose=False,
             )
 

@@ -16,7 +16,7 @@ RUN apt-get update \
 COPY requirements.txt ./
 
 RUN pip install --upgrade pip \
-	&& pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision \
+	&& pip install --index-url https://download.pytorch.org/whl/cu121 torch torchvision \
 	&& pip install -r requirements.txt \
 	&& pip install ultralytics
 

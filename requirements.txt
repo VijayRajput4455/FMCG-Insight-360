@@ -22,3 +22,4 @@ streamlit>=1.35.0
 Pillow>=10.0.0
 streamlit-option-menu>=0.4.0
 reportlab>=4.2.0
+openpyxl>=3.1.5
