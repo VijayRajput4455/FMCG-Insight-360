@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 class ProductType(str, Enum):
-    OWN = "own"
+    SELF = "self"
     COMPETITOR = "competitor"
 
 

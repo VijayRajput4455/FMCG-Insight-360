@@ -1,203 +1,500 @@
 version: '3.8'
 
 services:
-  # =========================
-  # Application Services
-  # =========================
+
+  # ==========================================================
+  # APPLICATION LAYER
+  # ==========================================================
+  #
+  # This section contains all services responsible for
+  # executing the FMCG Insight application.
+  #
+  # api      -> FastAPI REST API
+  # worker   -> Background AI processing worker
+  #
+  # These services communicate with:
+  #   • PostgreSQL (Database)
+  #   • RabbitMQ (Message Queue)
+  #   • Redis (Cache)
+  #
+  # ==========================================================
 
   api:
+
+    # Build Docker image from local Dockerfile
     build:
       context: .
       dockerfile: Dockerfile
+
+    # Easy-to-identify container name
     container_name: fmcg-api
+
+    # Enable NVIDIA GPU inside container
+    # Required for:
+    #   - YOLO
+    #   - OCR
+    #   - Embedding Generation
+    #   - LLM Inference
     gpus: all
+
+    # Load environment variables
     env_file:
       - .env.docker
+
+    # Expose FastAPI
+    # Host:8000 -> Container:8000
     ports:
       - "8000:8000"
+
+    # Persist important folders
+    #
+    # logs/
+    #     Application logs
+    #
+    # uploads/
+    #     User uploaded files
+    #
+    # outputs/
+    #     Generated reports
+    #
+    # ml_models/
+    #     AI Models
+    #
     volumes:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
       - ./ml_models:/app/ml_models
+
+    # Wait until dependencies become healthy
     depends_on:
       postgres:
         condition: service_healthy
+
       rabbitmq:
         condition: service_healthy
+
       redis:
         condition: service_healthy
+
+    # Restart automatically
     restart: unless-stopped
+
+    # Connect API to both networks
+    #
+    # backend
+    #     Business services
+    #
+    # monitoring
+    #     Prometheus/Grafana/Loki
+    #
     networks:
       - backend
       - monitoring
 
+
+
+  # ==========================================================
+  # AI WORKER
+  # ==========================================================
+  #
+  # Executes long-running background tasks.
+  #
+  # Example:
+  #
+  # API
+  #   ↓
+  # RabbitMQ
+  #   ↓
+  # Worker
+  #   ↓
+  # AI Pipeline
+  #
+  # Keeps API responsive.
+  #
+  # ==========================================================
+
   worker:
+
     build:
       context: .
       dockerfile: Dockerfile
+
     container_name: fmcg-worker
+
     gpus: all
-    command: ["python", "-m", "app.workers.worker"]
+
+    # Start Worker instead of FastAPI
+    command:
+      ["python", "-m", "app.workers.worker"]
+
     env_file:
       - .env.docker
+
     volumes:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
       - ./ml_models:/app/ml_models
+
     depends_on:
       postgres:
         condition: service_healthy
+
       rabbitmq:
         condition: service_healthy
+
       redis:
         condition: service_healthy
+
     restart: unless-stopped
+
     networks:
       - backend
       - monitoring
 
-  # =========================
-  # Database Services
-  # =========================
+
+
+  # ==========================================================
+  # DATABASE LAYER
+  # ==========================================================
+  #
+  # Stores:
+  #
+  #   • Users
+  #   • Products
+  #   • Brands
+  #   • AI Results
+  #   • Jobs
+  #   • Audit Logs
+  #
+  # ==========================================================
 
   postgres:
+
     image: postgres:16-alpine
+
     container_name: fmcg-postgres
+
     environment:
       POSTGRES_DB: fmcg_db
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
+
+    # Host 5433
+    # Container 5432
     ports:
       - "5433:5432"
+
+    # Persist database data
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    # Docker waits until PostgreSQL accepts connections
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d fmcg_db"]
+      test:
+        ["CMD-SHELL", "pg_isready -U admin -d fmcg_db"]
+
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+
     restart: unless-stopped
+
     networks:
       - backend
 
+
+
+  # ==========================================================
+  # MESSAGE BROKER
+  # ==========================================================
+  #
+  # RabbitMQ decouples API from AI processing.
+  #
+  # API
+  #     ↓
+  # Queue
+  #     ↓
+  # Worker
+  #
+  # Benefits:
+  #
+  # • Retry
+  # • Scalability
+  # • Reliability
+  # • Async Processing
+  #
+  # ==========================================================
+
   rabbitmq:
+
     image: rabbitmq:3.13-management
+
     container_name: fmcg-rabbitmq
+
     ports:
+
+      # AMQP
       - "5672:5672"
+
+      # Management Dashboard
       - "15672:15672"
+
+    # Check RabbitMQ readiness
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+
+      test:
+        ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 15s
+
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+
     restart: unless-stopped
+
     networks:
       - backend
 
+
+
+  # ==========================================================
+  # REDIS
+  # ==========================================================
+  #
+  # Used for:
+  #
+  # • Cache
+  # • Rate Limiting
+  # • Temporary Data
+  # • Session Storage
+  # • Fast Lookups
+  #
+  # ==========================================================
+
   redis:
+
     image: redis:7-alpine
+
     container_name: fmcg-redis
+
     ports:
       - "6379:6379"
+
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+
+      test:
+        ["CMD", "redis-cli", "ping"]
+
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
+
     volumes:
       - redis_data:/data
+
     restart: unless-stopped
+
     networks:
       - backend
 
-  # =========================
-  # Monitoring Stack
-  # =========================
+
+
+  # ==========================================================
+  # LOG AGGREGATION
+  # ==========================================================
+  #
+  # Loki stores logs.
+  #
+  # Similar to Elasticsearch
+  # but optimized for logs.
+  #
+  # ==========================================================
 
   loki:
+
     image: grafana/loki:2.9.0
+
     container_name: fmcg-loki
+
     ports:
       - "3100:3100"
+
     volumes:
       - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml
-    command: -config.file=/etc/loki/local-config.yaml
+
+    command:
+      -config.file=/etc/loki/local-config.yaml
+
     restart: unless-stopped
+
     networks:
       - monitoring
 
+
+
+  # ==========================================================
+  # LOG COLLECTOR
+  # ==========================================================
+  #
+  # Promtail watches application logs and
+  # continuously pushes them into Loki.
+  #
+  # ==========================================================
+
   promtail:
+
     image: grafana/promtail:2.9.0
+
     container_name: fmcg-promtail
+
     volumes:
       - ./logs:/var/log/fmcg
       - ./monitoring/promtail-config.yml:/etc/promtail/config.yml
-    command: -config.file=/etc/promtail/config.yml
+
+    command:
+      -config.file=/etc/promtail/config.yml
+
     depends_on:
       - loki
+
     restart: unless-stopped
+
     networks:
       - monitoring
 
+
+
+  # ==========================================================
+  # METRICS SERVER
+  # ==========================================================
+  #
+  # Collects metrics such as:
+  #
+  # • CPU
+  # • Memory
+  # • Request Count
+  # • API Latency
+  # • Worker Performance
+  #
+  # ==========================================================
+
   prometheus:
+
     image: prom/prometheus:latest
+
     container_name: fmcg-prometheus
+
     ports:
       - "9090:9090"
+
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
+
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
+
     restart: unless-stopped
+
     networks:
       - monitoring
 
+
+
+  # ==========================================================
+  # VISUALIZATION
+  # ==========================================================
+  #
+  # Grafana visualizes:
+  #
+  # • Metrics
+  # • Logs
+  # • Dashboards
+  # • Alerts
+  #
+  # ==========================================================
+
   grafana:
+
     image: grafana/grafana:latest
+
     container_name: fmcg-grafana
+
     ports:
       - "3000:3000"
+
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+
     depends_on:
       - prometheus
       - loki
+
     restart: unless-stopped
+
     networks:
       - monitoring
 
-# =========================
-# Volumes
-# =========================
+
+
+# ==========================================================
+# DOCKER VOLUMES
+# ==========================================================
+#
+# Named volumes survive container deletion.
+#
+# docker compose down
+#     ↓
+# Data remains
+#
+# docker compose up
+#     ↓
+# Data is restored
+#
+# ==========================================================
 
 volumes:
+
   postgres_data:
   rabbitmq_data:
   redis_data:
   grafana_data:
   prometheus_data:
 
-# =========================
-# Networks
-# =========================
+
+
+# ==========================================================
+# DOCKER NETWORKS
+# ==========================================================
+#
+# backend
+#     Internal communication
+#
+# monitoring
+#     Monitoring stack
+#
+# Splitting networks improves
+# security and organization.
+#
+# ==========================================================
 
 networks:
+
   backend:
     driver: bridge
 

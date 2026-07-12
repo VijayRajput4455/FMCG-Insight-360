@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.models.product import Product
 
-
 logger = logging.getLogger(__name__)
 
 

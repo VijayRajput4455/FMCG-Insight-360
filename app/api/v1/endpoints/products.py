@@ -131,6 +131,7 @@ def _build_csv_template() -> bytes:
             "type": "own",
         }
     )
+    
     writer.writerow(
         {
             "product_code_id": 2,
