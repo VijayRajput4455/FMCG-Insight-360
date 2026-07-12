@@ -93,6 +93,41 @@ class RedisCache:
         except RedisError:
             logger.exception("Redis delete failed | key=%s", key)
 
+    def check_rate_limit(self, key: str, limit: int, window_seconds: int) -> bool:
+        """
+        Check if the rate limit has been exceeded for the given key.
+        Returns True if within limit, False if exceeded.
+        """
+        client = self._get_client()
+        if client is None:
+            # If Redis is unavailable, allow the request
+            return True
+
+        try:
+            current_count = client.get(key)
+            if current_count is None:
+                return True
+            return int(current_count) < limit
+        except RedisError:
+            logger.exception("Redis rate limit check failed | key=%s", key)
+            return True
+
+    def increment_rate_limit(self, key: str, window_seconds: int) -> None:
+        """
+        Increment the rate limit counter for the given key.
+        """
+        client = self._get_client()
+        if client is None:
+            return
+
+        try:
+            # Use INCR to atomically increment
+            client.incr(key)
+            # Set expiration if this is the first request in the window
+            client.expire(key, window_seconds)
+        except RedisError:
+            logger.exception("Redis rate limit increment failed | key=%s", key)
+
 
 _redis_cache = RedisCache()
 

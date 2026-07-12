@@ -1,0 +1,6 @@
+{
+    "model_name": "A",
+    "image_size": 1280,
+    "conf_threshold": 0.25,
+    "iou_threshold": 0.45
+}

@@ -27,5 +27,7 @@ class Settings:
     RABBITMQ_AUDIT_QUEUE: str = os.getenv("RABBITMQ_AUDIT_QUEUE", "audit.jobs")
     RABBITMQ_AUDIT_FAILED_QUEUE: str = os.getenv("RABBITMQ_AUDIT_FAILED_QUEUE", "audit.jobs.failed")
     RABBITMQ_MAX_RETRIES: int = int(os.getenv("RABBITMQ_MAX_RETRIES", "3"))
+    RATE_LIMIT_REQUESTS_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_REQUESTS_PER_MINUTE", "10"))
+    RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
 
 settings = Settings()

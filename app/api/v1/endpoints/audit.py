@@ -18,6 +18,7 @@ from app.models.product_code import ProductCode
 from app.repositories.audit_repo import create_audit, update_audit_status
 from app.services.rabbitmq_service import get_rabbitmq_client
 from app.services.redis_cache import get_redis_cache
+from app.core.metrics import increment_audit_request, increment_rate_limit
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -93,6 +94,40 @@ def _audit_result_cache_key(audit_id: int) -> str:
 	return f"audit:result:{audit_id}"
 
 
+def _rate_limit_key(request: Request, endpoint: str) -> str:
+	"""Generate a rate limit key based on client IP and endpoint."""
+	client_ip = request.client.host if request.client else "unknown"
+	return f"rate_limit:{client_ip}:{endpoint}"
+
+
+async def check_rate_limit(request: Request, endpoint: str = "audit"):
+	"""
+	Rate limiting dependency for audit endpoints.
+	Limits: Configurable requests per minute per IP per endpoint (default: 10 requests per 60 seconds).
+	"""
+	key = _rate_limit_key(request, endpoint)
+	
+	# Check if within limit
+	if not redis_cache.check_rate_limit(key, limit=settings.RATE_LIMIT_REQUESTS_PER_MINUTE, window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS):
+		# Track rate limit violation
+		increment_rate_limit(endpoint, request.client.host if request.client else "unknown")
+		logger.warning("Rate limit exceeded | ip=%s endpoint=%s", request.client.host if request.client else "unknown", endpoint)
+		raise HTTPException(
+			status_code=429, 
+			detail="Too many requests. Please try again later."
+		)
+	
+	# Increment the counter
+	redis_cache.increment_rate_limit(key, window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS)
+
+
+def get_rate_limit_dependency(endpoint: str):
+	"""Factory function to create rate limit dependency for specific endpoint."""
+	async def dependency(request: Request):
+		await check_rate_limit(request, endpoint)
+	return dependency
+
+
 def _get_product_code_id(db: Session, product_code: str) -> int | None:
 	cache_key = _product_code_cache_key(product_code)
 	cached = redis_cache.get_json(cache_key)
@@ -157,8 +192,10 @@ def _queue_audit_pipeline(db: Session, product_code: str, image: np.ndarray, sou
 			"image_path": input_image_path,
 		}
 		get_rabbitmq_client().publish(settings.RABBITMQ_AUDIT_QUEUE, payload)
+		increment_audit_request(product_code, "success")
 	except Exception as e:
 		update_audit_status(db, audit.id, "failed", error_message=str(e))
+		increment_audit_request(product_code, "queue_error")
 		logger.exception("Audit queue publish failed for product_code=%s", product_code)
 		return {
 			"audit_id": audit.id,
@@ -209,6 +246,7 @@ def list_audits(
 
 @router.get("/by-code")
 def detect_products_by_code_api(
+	request: Request,
 	product_code: str = Query(
 		...,
 		min_length=2,
@@ -220,6 +258,7 @@ def detect_products_by_code_api(
 		description="Publicly accessible image URL for detection",
 	),
 	db: Session = Depends(get_db),
+	rate_limit: None = Depends(get_rate_limit_dependency("by-code")),
 ):
 	logger.info("Detection request received | product_code=%s", product_code)
 
@@ -236,6 +275,7 @@ def detect_products_by_code_api(
 		return _queue_audit_pipeline(db, product_code, image, image_url)
 
 	except Exception as e:
+		increment_audit_request(product_code, "error")
 		logger.exception("Unhandled detection failure -> %s", str(e))
 		return build_response(
 			product_image_url=image_url,
@@ -245,10 +285,13 @@ def detect_products_by_code_api(
 
 @router.post("/by-code/upload")
 async def detect_products_by_code_upload_api(
+	request: Request,
 	product_code: str = Form(..., min_length=2),
 	file: UploadFile = File(...),
 	db: Session = Depends(get_db),
+	rate_limit: None = Depends(get_rate_limit_dependency("by-code-upload")),
 ):
+	print(request.headers,"yyyyyyyyyyyyyyyyyyyyyyyyyyyy")
 	logger.info("Upload detection request received | product_code=%s", product_code)
 
 	file_ref = file.filename or "uploaded-file"
@@ -273,6 +316,7 @@ async def detect_products_by_code_upload_api(
 		return _queue_audit_pipeline(db, product_code, image, file_ref)
 
 	except Exception as e:
+		increment_audit_request(product_code, "error")
 		logger.exception("Unhandled upload detection failure -> %s", str(e))
 		return {
 			"status": "error",
