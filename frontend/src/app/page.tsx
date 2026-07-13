@@ -1,20 +1,13 @@
-import Link from "next/link";
-
 import AuditConsole from "@/components/AuditConsole";
 
 export default function HomePage() {
   return (
-    <main className="container">
+    <div className="container stack" style={{ gap: "2rem" }}>
       <header className="hero">
-        <h1>FMCG Insight 360</h1>
-        <p>Submit an audit and watch live status updates from WebSocket with HTTP fallback.</p>
-        <nav className="nav-row">
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/history">History</Link>
-          <Link href="/product-codes">Product Codes</Link>
-        </nav>
+        <h1>FMCG Classification Audit</h1>
+        <p>Submit an audit image (via local file upload or online URL) and track real-time YOLO classification progress.</p>
       </header>
       <AuditConsole />
-    </main>
+    </div>
   );
 }

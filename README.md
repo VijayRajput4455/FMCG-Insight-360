@@ -2163,3 +2163,42 @@ npm run dev -- --port 3001
 - Use the FastAPI docs at `/docs` for interactive testing.
 - If you are only validating the backend, Streamlit and Next.js are optional.
 - Verify health, DB, and product-code endpoints before attempting a full audit.
+
+## 💻 Next.js Premium Web Operations Console
+
+This repository includes a state-of-the-art Next.js web application located under the `frontend/` directory. It is redesigned as a dark glassmorphic operations console with a modern sidebar layout, real-time telemetry, and advanced interactive capabilities.
+
+### Key Console Features
+1. **Interactive Detection Overlay Viewer**: When reviewing completed audits (either on the submission console or log details), detection bounding boxes are mapped as relative CSS highlights overlays over the image. Hovering over a detection coordinate row in the table dynamically highlights the corresponding bounding box on the image, and vice-versa.
+2. **Product SKU Catalog Manager**: Full administration interface for managing individual retail inventory items mapping to specific operator hotkeys. Supports bulk spreadsheet uploading (CSV/Excel) and template downloads.
+3. **Model Inference Configurator**: A central registry for setting custom machine learning weight mappings. Allows operators to set input image size, confidence triggers, and NMS overlap thresholds dynamically.
+4. **Live Telmetry & SVG Sparklines**: Displays audit history counts using in-browser SVG charting. Calculates real-time system success rates, failure metrics, and updates automatically via WebSockets (with HTTP fallback).
+
+### Local Setup & Startup Guide
+
+#### 1. Setup Environment Variables
+Navigate into the `frontend/` folder and create a `.env.local` file (you can copy `.env.local.example`):
+```bash
+cd frontend
+cp .env.local.example .env.local
+```
+Ensure the contents point to your active FastAPI backend:
+```env
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_WS_BASE_URL=ws://127.0.0.1:8000
+```
+
+#### 2. Install Node Dependencies
+Use `npm` to install clean node packages (requires Node.js 18+):
+```bash
+npm install
+```
+
+#### 3. Compile and Run the Console Dev Server
+Start the Next.js App Router compiler:
+```bash
+npm run dev
+```
+
+The console will boot on `http://127.0.0.1:3000`. It connects dynamically to the backend API, allowing you to run audits, track logs, manage products, and register models.
+

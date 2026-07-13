@@ -25,6 +25,16 @@ setup_logging(settings.LOG_LEVEL, log_dir=settings.LOG_DIR, log_file=settings.LO
 app = FastAPI(title="FMCG Insight 360")
 logger = get_logger(__name__)
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
