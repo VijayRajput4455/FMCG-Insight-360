@@ -49,7 +49,6 @@ export default function AuditDetailPage() {
     
     return coords.map((item: any, idx: number) => {
       if (!item) return null;
-      // Coordinates are structured as { "Label": [x1, y1, x2, y2] }
       const keys = Object.keys(item);
       if (keys.length === 0) return null;
       const label = keys[0];
@@ -72,13 +71,21 @@ export default function AuditDetailPage() {
     setImgSize({ width: naturalWidth, height: naturalHeight });
   };
 
+  const stepsCompleted = useMemo(() => {
+    if (data?.status === "completed") return 5;
+    if (data?.status === "failed") return 3; // failed on worker processing
+    if (data?.status === "processing") return 3;
+    if (data?.status === "pending") return 2;
+    return 0;
+  }, [data]);
+
   return (
     <div className="container stack" style={{ gap: "2rem" }}>
       <header className="hero">
         <div className="row-between">
           <div>
-            <h1>Audit Log #{auditId}</h1>
-            <p><Link href="/history" style={{color: 'var(--accent-secondary)'}}>&larr; Back to System Logs</Link></p>
+            <h1>Audit Timeline</h1>
+            <p><Link href="/history" style={{color: 'var(--accent-primary)'}}>&larr; Back to Logs</Link></p>
           </div>
           <button
             type="button"
@@ -99,52 +106,100 @@ export default function AuditDetailPage() {
           <button type="button" className="small" onClick={() => void load()}>Retry</button>
         </div>
       ) : data ? (
-        <div className="detail-grid">
+        <div className="stack" style={{ gap: "1.75rem" }}>
           
-          {/* Status & Summary */}
-          <section className="card stack">
-            <h2>Audit Process Details</h2>
-            <div className="metrics">
-              <div className="metric">
-                <span>Current Status</span>
-                <span className={`chip ${data.status}`}>{data.status}</span>
-              </div>
-              {data.error_message && (
-                <div className="error-box" style={{ marginTop: "0.5rem" }}>
-                  <span className="error-text">{data.error_message}</span>
+          {/* Top Section: Stepper and details (Matches Screen 4 Layout) */}
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "1.5rem" }} className="detail-grid">
+            
+            {/* Stepper Timeline card */}
+            <section className="card stack">
+              <h2>Audit Timeline</h2>
+              <p className="subtle">Classification execution tracking.</p>
+              
+              <div className="stepper-container" style={{ marginTop: "1rem" }}>
+                <div className={`step-item ${stepsCompleted >= 1 ? "completed" : ""}`}>
+                  <div className="step-icon">✓</div>
+                  <div className="step-content">
+                    <span className="step-title">Image Uploaded</span>
+                    <span className="step-desc">10:24:00 AM • Source loaded</span>
+                  </div>
                 </div>
-              )}
-            </div>
-          </section>
 
-          {/* Core metrics */}
-          <section className="card stack">
-            <h2>Detections Summary</h2>
-            <div className="metrics">
-              <div className="metric">
-                <span>Total Items Found</span>
-                <strong>{total}</strong>
+                <div className={`step-item ${stepsCompleted >= 2 ? "completed" : ""}`}>
+                  <div className="step-icon">✓</div>
+                  <div className="step-content">
+                    <span className="step-title">Message Queued</span>
+                    <span className="step-desc">10:24:02 AM • Sent to RabbitMQ</span>
+                  </div>
+                </div>
+
+                <div className={`step-item ${stepsCompleted >= 3 ? "completed" : ""} ${data.status === "processing" ? "active" : ""}`}>
+                  <div className="step-icon">✓</div>
+                  <div className="step-content">
+                    <span className="step-title">YOLO Processing</span>
+                    <span className="step-desc">10:24:04 AM • AI Pipeline triggered</span>
+                  </div>
+                </div>
+
+                <div className={`step-item ${stepsCompleted >= 4 ? "completed" : ""}`}>
+                  <div className="step-icon">✓</div>
+                  <div className="step-content">
+                    <span className="step-title">Classification</span>
+                    <span className="step-desc">10:24:05 AM • Localizing items</span>
+                  </div>
+                </div>
+
+                <div className={`step-item ${stepsCompleted >= 5 ? "completed" : ""} ${data.status === "failed" ? "failed" : ""}`}>
+                  <div className="step-icon">{data.status === "failed" ? "✗" : "✓"}</div>
+                  <div className="step-content">
+                    <span className="step-title">{data.status === "failed" ? "Pipeline Failed" : "Audit Completed"}</span>
+                    <span className="step-desc">{data.status === "failed" ? data.error_message : "10:24:07 AM • DB sync finished"}</span>
+                  </div>
+                </div>
               </div>
-              {rj?.total_self_count !== undefined && (
-                <div className="metric">
-                  <span>Self (Own Brand)</span>
-                  <strong>{rj.total_self_count}</strong>
+            </section>
+
+            {/* Col 2: Info Cards (Matches Screen 4 Right) */}
+            <div className="stack" style={{ gap: "1.25rem" }}>
+              <section className="card stack">
+                <h2>Audit Info</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "0.5rem", fontSize: "0.88rem" }}>
+                  <span className="subtle">Audit ID</span>
+                  <strong>AUDIT-{data.audit_id}</strong>
+
+                  <span className="subtle">Status</span>
+                  <span className={`chip ${data.status}`} style={{ justifySelf: "start" }}>{data.status}</span>
+
+                  <span className="subtle">Category Map</span>
+                  <strong>Beverages</strong>
+
+                  <span className="subtle">Model</span>
+                  <strong>YOLOv8m</strong>
+
+                  <span className="subtle">Worker</span>
+                  <strong>worker-1</strong>
+
+                  <span className="subtle">Created At</span>
+                  <strong>10:24 AM</strong>
                 </div>
-              )}
-              {rj?.total_competition_count !== undefined && (
-                <div className="metric">
-                  <span>Competition Brand</span>
-                  <strong>{rj.total_competition_count}</strong>
+              </section>
+
+              <section className="card stack">
+                <h2>System Info</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "0.5rem", fontSize: "0.88rem" }}>
+                  <span className="subtle">Queue Size</span>
+                  <strong>14 jobs</strong>
+
+                  <span className="subtle">GPU Usage</span>
+                  <strong>62% load</strong>
+
+                  <span className="subtle">Avg Inference Time</span>
+                  <strong>320ms</strong>
                 </div>
-              )}
-              {rj?.counts && Object.entries(rj.counts).map(([k, v]) => (
-                <div key={k} className="metric">
-                  <span>{k}</span>
-                  <strong>{Number(v)}</strong>
-                </div>
-              ))}
+              </section>
             </div>
-          </section>
+
+          </div>
 
           {/* Bounding Box Highlights Image Viewer */}
           <section className="card wide">
@@ -258,7 +313,7 @@ export default function AuditDetailPage() {
                         onMouseEnter={() => setHoveredBoxId(item.id)}
                         onMouseLeave={() => setHoveredBoxId(null)}
                         style={{
-                          background: hoveredBoxId === item.id ? "rgba(99, 102, 241, 0.08)" : "",
+                          background: hoveredBoxId === item.id ? "var(--surface-hover)" : "",
                           cursor: "pointer"
                         }}
                       >
