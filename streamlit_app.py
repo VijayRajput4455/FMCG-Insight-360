@@ -888,7 +888,7 @@ def create_model_dialog():
     with st.form("dlg_create_model"):
         code_sel = st.selectbox("Product Code *", list(code_map.keys()))
         mname = st.text_input("Model Name *")
-        mpath = st.text_input("Model Path *")
+        mpath = st.text_input("Model Path / Filename *", help="Filename of the model weights inside the model directory (e.g. yolo26m.pt)")
         c1, c2, c3 = st.columns(3)
         img_size = c1.number_input("Image Size", value=1280, min_value=320, max_value=2048, step=32)
         conf_thr = c2.slider("Conf Threshold", 0.0, 1.0, 0.25, 0.01)
@@ -1178,7 +1178,7 @@ elif page == PAGES[3]:
                 def edit_model_dialog(existing_row: dict):
                     with st.form("dlg_edit_model"):
                         new_mname = st.text_input("Model Name", value=existing_row["model_name"])
-                        new_mpath = st.text_input("Model Path", value=existing_row["model_path"])
+                        new_mpath = st.text_input("Model Path / Filename", value=existing_row["model_path"], help="Filename of the model weights inside the model directory (e.g. yolo26m.pt)")
                         c1, c2, c3 = st.columns(3)
                         new_img = c1.number_input("Image Size", value=int(existing_row["image_size"]), min_value=320, max_value=2048, step=32)
                         new_conf = c2.slider("Conf Threshold", 0.0, 1.0, float(existing_row["conf_threshold"]), 0.01)

@@ -29,5 +29,6 @@ class Settings:
     RABBITMQ_MAX_RETRIES: int = int(os.getenv("RABBITMQ_MAX_RETRIES", "3"))
     RATE_LIMIT_REQUESTS_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_REQUESTS_PER_MINUTE", "10"))
     RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+    ML_MODEL_DIR: str = os.getenv("ML_MODEL_DIR", os.getenv("ML_FOLDER", "ml_models"))
 
 settings = Settings()

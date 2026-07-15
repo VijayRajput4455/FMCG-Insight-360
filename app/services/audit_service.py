@@ -22,7 +22,7 @@ def _save_annotated_image(image, audit_id: int) -> str | None:
     filename = f"audit_{audit_id}_{uuid.uuid4().hex}.jpg"
     output_path = os.path.join(output_dir, filename)
     cv2.imwrite(output_path, image)
-    return output_path
+    return output_path.replace('\\', '/')
 
 
 def process_existing_audit(db: Session, audit_id: int, product_code_id: int, image_path: str):
@@ -60,11 +60,16 @@ def process_existing_audit(db: Session, audit_id: int, product_code_id: int, ima
         )
         response_payload = {
             "counts": merged,
-            "total": inference_result.get("total", sum(merged.values())),
+            "total_product_count": inference_result.get("total_product_count", sum(merged.values())),
+            "total_self_count": inference_result.get("total_self_count", 0),
+            "total_competition_count": inference_result.get("total_competition_count", 0),
+            "brand_counts": inference_result.get("brand_counts", []),
+            "detected_products": inference_result.get("detected_products", []),
+            "products": inference_result.get("products", []),
             "detection_coordinates": inference_result.get("detection_coordinates", []),
             "annotated_image_path": annotated_image_path,
         }
-        logger.debug("audit_id=%s merged counts=%s total=%s", audit_id, merged, response_payload["total"])
+        logger.debug("audit_id=%s merged counts=%s total=%s", audit_id, merged, response_payload["total_product_count"])
 
         # Step 5: Save result
         update_audit_status(
@@ -76,7 +81,7 @@ def process_existing_audit(db: Session, audit_id: int, product_code_id: int, ima
 
         logger.info(
             "Audit pipeline completed | audit_id=%s total=%s annotated_image=%s",
-            audit_id, response_payload["total"], annotated_image_path,
+            audit_id, response_payload["total_product_count"], annotated_image_path,
         )
         return response_payload
 

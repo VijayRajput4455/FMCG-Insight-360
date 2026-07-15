@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 import logging
+import os
 
 from app.core.database import get_db
 from app.models.model import Model
 from app.models.product_code import ProductCode
 from app.schemas.model import ModelCreate, ModelUpdate, ModelResponse
 from app.schemas.error import ErrorResponse
+from app.services.model_service import _model_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -35,6 +37,14 @@ def create_model(data: ModelCreate, db: Session = Depends(get_db)):
 	).first()
 	if existing:
 		raise HTTPException(status_code=400, detail="Model already exists for this product code")
+
+	# Validate resolved model path exists
+	resolved_path = _model_service.resolve_model_path(data.model_path)
+	if not os.path.exists(resolved_path):
+		raise HTTPException(
+			status_code=400,
+			detail=f"Model weights file not found: '{data.model_path}' (Resolved as '{resolved_path}')"
+		)
 
 	obj = Model(**data.dict())
 	db.add(obj)
@@ -120,6 +130,14 @@ def update_model_by_name(
 		if not product_code:
 			raise HTTPException(status_code=400, detail="Invalid product_code_id")
 
+	if "model_path" in updates:
+		resolved_path = _model_service.resolve_model_path(updates["model_path"])
+		if not os.path.exists(resolved_path):
+			raise HTTPException(
+				status_code=400,
+				detail=f"Model weights file not found: '{updates['model_path']}' (Resolved as '{resolved_path}')"
+			)
+
 	for key, value in updates.items():
 		setattr(obj, key, value)
 
@@ -150,6 +168,14 @@ def update_model(
 		product_code = db.query(ProductCode).filter(ProductCode.id == updates["product_code_id"]).first()
 		if not product_code:
 			raise HTTPException(status_code=400, detail="Invalid product_code_id")
+
+	if "model_path" in updates:
+		resolved_path = _model_service.resolve_model_path(updates["model_path"])
+		if not os.path.exists(resolved_path):
+			raise HTTPException(
+				status_code=400,
+				detail=f"Model weights file not found: '{updates['model_path']}' (Resolved as '{resolved_path}')"
+			)
 
 	for key, value in updates.items():
 		setattr(obj, key, value)

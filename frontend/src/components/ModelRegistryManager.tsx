@@ -159,11 +159,11 @@ export default function ModelRegistryManager() {
               </label>
 
               <label>
-                Local Weights Path (.pt / .onnx) *
+                Weights Filename / Path (.pt / .onnx) *
                 <input
                   value={modelPath}
                   onChange={(e) => setModelPath(e.target.value)}
-                  placeholder="e.g. ml_models/weights/pepsi_yolo.pt"
+                  placeholder="e.g. yolo26m.pt (resolved inside configured ML folder)"
                   required
                 />
               </label>

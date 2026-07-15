@@ -16,7 +16,7 @@ def _normalize_product_type(value):
         return value
     if isinstance(value, str):
         normalized = value.strip().lower()
-        if normalized == "own":
+        if normalized == "self":
             return ProductType.SELF
         if normalized in {"self", "competitor"}:
             return normalized

@@ -54,6 +54,25 @@ class ModelService:
             )
 
     # ---------------- UTIL ----------------
+    def resolve_model_path(self, model_path: str) -> str:
+        if not model_path:
+            return model_path
+
+        from app.core.config import settings
+        base_dir = getattr(settings, "ML_MODEL_DIR", "ml_models")
+
+        # If it is absolute, return normalized path
+        if os.path.isabs(model_path):
+            return os.path.normpath(model_path)
+
+        # If it already exists as-is relative to current working directory, use it
+        if os.path.exists(model_path):
+            return os.path.normpath(os.path.abspath(model_path))
+
+        # Otherwise, resolve relative to ML_MODEL_DIR
+        resolved = os.path.join(base_dir, model_path)
+        return os.path.normpath(os.path.abspath(resolved))
+
     def _make_key(self, model_path: str) -> str:
         return os.path.abspath(model_path)
 
@@ -76,10 +95,11 @@ class ModelService:
 
     # ---------------- MAIN LOADER (FIXED) ----------------
     def load_model(self, model_path: str) -> YOLO:
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"Model not found: {model_path}")
+        resolved_path = self.resolve_model_path(model_path)
+        if not os.path.exists(resolved_path):
+            raise FileNotFoundError(f"Model not found at: {resolved_path} (original path: {model_path})")
 
-        key = self._make_key(model_path)
+        key = self._make_key(resolved_path)
         now = time.monotonic()
 
         # Fast cache read under lock to keep OrderedDict access thread-safe.
@@ -88,15 +108,15 @@ class ModelService:
             if entry:
                 entry.last_used = now
                 self.model_cache.move_to_end(key)
-                logger.info("Using cached model: %s", model_path)
+                logger.info("Using cached model: %s", resolved_path)
                 return entry.model
 
         # Load outside lock so other requests are not blocked while model initializes.
         try:
-            logger.info("Loading YOLO model: %s", model_path)
-            model = YOLO(model_path)
+            logger.info("Loading YOLO model: %s", resolved_path)
+            model = YOLO(resolved_path)
         except Exception:
-            logger.exception("Error loading model: %s", model_path)
+            logger.exception("Error loading model: %s", resolved_path)
             raise
 
         with self.model_lock:
@@ -120,11 +140,12 @@ class ModelService:
 
     # ---------------- MANAGEMENT ----------------
     def unload_model(self, model_path: str) -> bool:
-        key = self._make_key(model_path)
+        resolved_path = self.resolve_model_path(model_path)
+        key = self._make_key(resolved_path)
         with self.model_lock:
             if key in self.model_cache:
                 del self.model_cache[key]
-                logger.info("Unloaded model: %s", model_path)
+                logger.info("Unloaded model: %s", resolved_path)
                 return True
         return False
 

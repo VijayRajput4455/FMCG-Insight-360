@@ -74,7 +74,7 @@ def _save_input_image(image: np.ndarray) -> str:
 	filename = f"audit_input_{uuid.uuid4().hex}.jpg"
 	image_path = os.path.join(input_dir, filename)
 	cv2.imwrite(image_path, image)
-	return image_path
+	return image_path.replace('\\', '/')
 
 
 def _annotated_image_url(request: Request, local_path: str | None) -> str:
