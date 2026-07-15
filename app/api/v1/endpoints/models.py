@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 from sqlalchemy.orm import Session
+from typing import Optional
 import logging
 import os
 
@@ -219,3 +220,86 @@ def delete_model(model_id: int, db: Session = Depends(get_db)):
 
 	logger.info(f"Deleted model id={model_id}")
 	return {"message": "Model deleted successfully"}
+
+
+@router.post(
+	"/upload",
+	response_model=ModelResponse,
+	responses={400: _ERROR_RESPONSES[400], 422: _ERROR_RESPONSES[422]},
+	summary="Upload model weights file and register it",
+)
+async def upload_model(
+	file: UploadFile = File(...),
+	product_code_id: int = Form(...),
+	model_name: str = Form(...),
+	folder_name: Optional[str] = Form(None),
+	image_size: int = Form(640),
+	conf_threshold: float = Form(0.45),
+	iou_threshold: float = Form(0.45),
+	db: Session = Depends(get_db),
+):
+	# Validate thresholds and sizing
+	if not (320 <= image_size <= 2048):
+		raise HTTPException(status_code=400, detail="image_size must be between 320 and 2048")
+	if not (0.0 <= conf_threshold <= 1.0):
+		raise HTTPException(status_code=400, detail="conf_threshold must be between 0.0 and 1.0")
+	if not (0.0 <= iou_threshold <= 1.0):
+		raise HTTPException(status_code=400, detail="iou_threshold must be between 0.0 and 1.0")
+
+	# Validate product_code_id
+	product_code = db.query(ProductCode).filter(ProductCode.id == product_code_id).first()
+	if not product_code:
+		raise HTTPException(status_code=400, detail="Invalid product_code_id")
+
+	# Check duplicate model name under product code
+	existing = db.query(Model).filter(
+		Model.product_code_id == product_code_id,
+		Model.model_name == model_name,
+	).first()
+	if existing:
+		raise HTTPException(status_code=400, detail="Model already exists for this product code")
+
+	# Validate model weights suffix
+	filename = os.path.basename(file.filename)
+	if not filename.endswith(".pt"):
+		raise HTTPException(status_code=400, detail="Only PyTorch model weight files (.pt) are supported")
+
+	# Compute model path based on optional folder_name
+	if folder_name:
+		# Clean folder name to prevent path traversal (e.g. strip ".." and leading/trailing slashes)
+		clean_folder = folder_name.replace("..", "").strip("/\\").replace("\\", "/")
+		if not clean_folder:
+			model_path = filename
+		else:
+			model_path = f"{clean_folder}/{filename}"
+	else:
+		model_path = filename
+
+	# Resolve path and ensure parent directories exist
+	resolved_path = _model_service.resolve_model_path(model_path)
+	os.makedirs(os.path.dirname(resolved_path), exist_ok=True)
+
+	# Write uploaded file in chunks
+	try:
+		with open(resolved_path, "wb") as buffer:
+			while chunk := await file.read(1024 * 1024):  # 1MB chunks
+				buffer.write(chunk)
+	except Exception as e:
+		logger.exception("Failed to write uploaded model weights file")
+		raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+	# Save registration metadata to DB
+	obj = Model(
+		product_code_id=product_code_id,
+		model_name=model_name,
+		model_path=model_path,
+		image_size=image_size,
+		conf_threshold=conf_threshold,
+		iou_threshold=iou_threshold,
+	)
+	db.add(obj)
+	db.commit()
+	db.refresh(obj)
+
+	logger.info(f"Uploaded and registered model={obj.model_name} for product_code_id={obj.product_code_id}")
+	return obj

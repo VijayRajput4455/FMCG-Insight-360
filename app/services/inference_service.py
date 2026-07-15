@@ -226,17 +226,22 @@ class InferenceService:
                     conf_thres=conf_threshold,
                     iou_thres=iou_threshold,
                 )
-                print("\n\n\nproduct_counts", product_counts)
 
                 #  Extracting Brand,Category and AI Codes
                 for key, value in product_counts.items():
                     if key.startswith("ERROR-") or key.startswith("No products"):
                         continue
+                    
+                    brand_cat_ai = self._get_brand_category_and_ai_codes(key, product_map)
 
                     if key in self_products:
                         self_count += value
+                        product_type = "Self"
                     elif key in competitor_products:
                         competition_count += value
+                        product_type = "Competition"
+                    else:
+                        product_type = ""
 
                     all_counts[key] += value
 
