@@ -9,6 +9,7 @@ import {
   resolveApiAssetUrl, 
   submitAuditByCode, 
   submitAuditByUpload, 
+  submitAuditByUploadBulk,
   listProductCodes,
   type AuditStatusResponse, 
   type ProductCode
@@ -24,7 +25,7 @@ export default function AuditConsole() {
   const [productCode, setProductCode] = useState("");
   const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
   const [imageUrl, setImageUrl] = useState("");
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   
   const [auditId, setAuditId] = useState<number | null>(null);
   const [state, setState] = useState<UiState>("idle");
@@ -66,9 +67,9 @@ export default function AuditConsole() {
   }, []);
 
   const canSubmit = useMemo(() => {
-    const validSource = mode === "url" ? imageUrl.trim().length >= 10 : uploadFile !== null;
+    const validSource = mode === "url" ? imageUrl.trim().length >= 10 : uploadFiles.length > 0;
     return productCode.trim().length >= 2 && validSource && state !== "submitting";
-  }, [mode, productCode, imageUrl, uploadFile, state]);
+  }, [mode, productCode, imageUrl, uploadFiles, state]);
 
   function trackAudit(id: number, status: string, sourceLabel: string) {
     addHistoryItem({
@@ -145,29 +146,75 @@ export default function AuditConsole() {
     setStatusMessage("Submitting audit request...");
 
     try {
-      const data = mode === "url"
-        ? await submitAuditByCode(productCode.trim(), imageUrl.trim())
-        : await submitAuditByUpload(productCode.trim(), uploadFile as File);
+      let auditIdToTrack: number | null = null;
+      let statusToTrack = "pending";
+      let sourceLabelToTrack = "";
 
-      if (!data.audit_id) {
-        setState("failed");
-        setStatusMessage((data.detection_reason as string) || data.message || "Failed to launch pipeline");
-        return;
+      if (mode === "url") {
+        const data = await submitAuditByCode(productCode.trim(), imageUrl.trim());
+        if (!data.audit_id) {
+          setState("failed");
+          setStatusMessage((data.detection_reason as string) || data.message || "Failed to launch pipeline");
+          return;
+        }
+        auditIdToTrack = data.audit_id;
+        statusToTrack = data.status;
+        sourceLabelToTrack = imageUrl.trim();
+        trackAudit(auditIdToTrack, statusToTrack, sourceLabelToTrack);
+      } else {
+        if (uploadFiles.length === 1) {
+          const data = await submitAuditByUpload(productCode.trim(), uploadFiles[0]);
+          if (!data.audit_id) {
+            setState("failed");
+            setStatusMessage((data.detection_reason as string) || data.message || "Failed to launch pipeline");
+            return;
+          }
+          auditIdToTrack = data.audit_id;
+          statusToTrack = data.status;
+          sourceLabelToTrack = uploadFiles[0].name;
+          trackAudit(auditIdToTrack, statusToTrack, sourceLabelToTrack);
+        } else {
+          const bulkData = await submitAuditByUploadBulk(productCode.trim(), uploadFiles);
+          const successes = bulkData.filter(item => item.status === "pending" && item.audit_id);
+          if (successes.length === 0) {
+            setState("failed");
+            setStatusMessage(bulkData[0]?.message || "Failed to launch bulk pipeline");
+            return;
+          }
+
+          successes.forEach((item) => {
+            addHistoryItem({
+              auditId: item.audit_id as number,
+              productCode: productCode.trim(),
+              sourceLabel: item.filename,
+              status: "pending",
+              createdAtIso: new Date().toISOString(),
+            });
+          });
+
+          const first = successes[0];
+          auditIdToTrack = first.audit_id as number;
+          statusToTrack = first.status;
+          sourceLabelToTrack = first.filename;
+        }
       }
 
-      setAuditId(data.audit_id);
-      trackAudit(data.audit_id, data.status, mode === "url" ? imageUrl.trim() : (uploadFile?.name || "upload"));
-      setState(data.status === "pending" ? "queued" : "processing");
-      setStatusMessage(`Running job #${data.audit_id}`);
+      setAuditId(auditIdToTrack);
+      setState(statusToTrack === "pending" ? "queued" : "processing");
+      setStatusMessage(
+        uploadFiles.length > 1
+          ? `Bulk request submitted. Monitoring job #${auditIdToTrack} live.`
+          : `Running job #${auditIdToTrack}`
+      );
 
-      socketRef.current = connectAuditSocket(data.audit_id, {
+      socketRef.current = connectAuditSocket(auditIdToTrack, {
         onMessage: handleSocketMessage,
         onError: () => {
           setStatusMessage("WebSocket connection lost. Reverting to HTTP fallback...");
         },
         onClose: () => {
           if (finalStateRef.current !== "completed" && finalStateRef.current !== "failed") {
-            void startHttpFallbackPolling(data.audit_id as number);
+            void startHttpFallbackPolling(auditIdToTrack as number);
           }
         },
       });
@@ -261,12 +308,20 @@ export default function AuditConsole() {
             {mode === "upload" ? (
               <div className="file-dropzone" onClick={() => document.getElementById("file-input-console")?.click()}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <span>{uploadFile ? uploadFile.name : "Drag & drop an image or click to browse"}</span>
+                <span>
+                  {uploadFiles.length > 0 
+                    ? (uploadFiles.length === 1 ? uploadFiles[0].name : `${uploadFiles.length} files selected`) 
+                    : "Drag & drop image(s) or click to browse"}
+                </span>
                 <input
                   id="file-input-console"
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  multiple
+                  onChange={(e) => {
+                    const selected = e.target.files ? Array.from(e.target.files) : [];
+                    setUploadFiles(selected);
+                  }}
                   style={{ display: "none" }}
                   required
                 />
@@ -311,7 +366,7 @@ export default function AuditConsole() {
               <div className="step-icon">✓</div>
               <div className="step-content">
                 <span className="step-title">Image Uploaded</span>
-                <span className="step-desc">{uploadFile ? "File selected successfully" : "Source resolved"}</span>
+                <span className="step-desc">{uploadFiles.length > 0 ? `${uploadFiles.length} file(s) selected` : "Source resolved"}</span>
               </div>
             </div>
             

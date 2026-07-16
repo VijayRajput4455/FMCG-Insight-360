@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-	<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=20&pause=1200&color=00B8D4&center=true&vCenter=true&width=1000&lines=FMCG+Shelf+Audit+Platform;FastAPI+%7C+RabbitMQ+%7C+Redis+%7C+PostgreSQL;Detection+Workflow+with+Streamlit+Ops+Console;Product+Codes+%7C+Products+%7C+Models+%7C+Audit+History" alt="FMCG Insight animated intro" />
+	<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=20&pause=1200&color=00B8D4&center=true&vCenter=true&width=1000&lines=FMCG+Shelf+Audit+Platform;FastAPI+%7C+RabbitMQ+%7C+Redis+%7C+PostgreSQL;Detection+Workflow+with+Next.js+Ops+Console;Product+Codes+%7C+Products+%7C+Models+%7C+Audit+History" alt="FMCG Insight animated intro" />
 </p>
 
 <p align="center">
@@ -14,7 +14,6 @@
 	<img src="https://img.shields.io/badge/PostgreSQL-Database-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
 	<img src="https://img.shields.io/badge/RabbitMQ-Async-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white" alt="RabbitMQ" />
 	<img src="https://img.shields.io/badge/Redis-Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
-	<img src="https://img.shields.io/badge/Streamlit-Ops_UI-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit" />
 </p>
 
 <p align="center">
@@ -26,10 +25,10 @@
 </p>
 
 <p align="center">
-	FastAPI backend · PostgreSQL persistence · RabbitMQ workers · Redis caching · YOLO inference · Streamlit ops console
+	FastAPI backend · PostgreSQL persistence · RabbitMQ workers · Redis caching · YOLO inference · Next.js ops console
 </p>
 
-FMCG Insight 360 combines a FastAPI backend, PostgreSQL storage, RabbitMQ-based background processing, Redis caching, and YOLO inference into a single shelf-audit workflow. The repository also includes a Streamlit operations console and an optional Next.js frontend for web-based usage.
+FMCG Insight 360 combines a FastAPI backend, PostgreSQL storage, RabbitMQ-based background processing, Redis caching, and YOLO inference into a single shelf-audit workflow with a premium Next.js operations console.
 
 ## 🎯 Overview
 
@@ -50,8 +49,7 @@ The platform covers the full audit lifecycle:
 - RabbitMQ-backed asynchronous inference workflow.
 - Redis caching for completed audit reads and lookup acceleration.
 - YOLO-based detection pipeline with in-memory model caching.
-- Streamlit admin and operations console.
-- Optional Next.js frontend in `frontend/`.
+- Next.js admin and operations console in `frontend/`.
 - Support for both image-URL and file-upload audit submission.
 
 ## 📚 Table of Contents
@@ -80,8 +78,7 @@ The platform covers the full audit lifecycle:
 
 ```mermaid
 flowchart LR
-		UI[Streamlit UI] --> API[FastAPI API]
-		WEB[Optional Next.js Frontend] --> API
+		WEB[Next.js Frontend] --> API[FastAPI API]
 		API --> DB[(PostgreSQL)]
 		API --> RMQ[(RabbitMQ)]
 		API --> REDIS[(Redis)]
@@ -111,8 +108,7 @@ Operational flow:
 | Queue | RabbitMQ, Pika |
 | Cache | Redis |
 | ML | Ultralytics YOLO, OpenCV |
-| Admin UI | Streamlit |
-| Optional Web UI | Next.js 14, React 18 |
+| Web UI | Next.js 14, React 18 |
 
 ## 🗂️ Repository Layout
 
@@ -154,7 +150,6 @@ FMCG-Insight-360/
 │           │   └── dashboards.yml
 │           └── datasources/
 │               └── datasources.yml
-├── streamlit_app.py
 ├── frontend/
 │   ├── next-env.d.ts
 │   ├── next.config.mjs
@@ -442,14 +437,7 @@ conda activate fmcg
 uvicorn app.main:app --reload --port 8000
 ```
 
-Terminal 2: Streamlit UI
-
-```bash
-conda activate fmcg
-streamlit run streamlit_app.py --server.port 8501
-```
-
-Optional Terminal 3: Next.js frontend
+Terminal 2: Next.js frontend
 
 ```bash
 cd frontend
@@ -481,14 +469,7 @@ conda activate fmcg
 python -m app.workers.worker
 ```
 
-Terminal 3: Streamlit UI
-
-```bash
-conda activate fmcg
-streamlit run streamlit_app.py --server.port 8501
-```
-
-Optional Terminal 4: Next.js frontend
+Terminal 3: Next.js frontend
 
 ```bash
 cd frontend
@@ -500,7 +481,6 @@ Useful URLs:
 
 - API root: `http://127.0.0.1:8000/`
 - FastAPI docs: `http://127.0.0.1:8000/docs`
-- Streamlit UI: `http://127.0.0.1:8501`
 - Next.js frontend: `http://127.0.0.1:3000`
 - RabbitMQ management UI: `http://127.0.0.1:15672`
 
@@ -2079,7 +2059,7 @@ All errors follow this consistent format:
 	<b>Workflow preview from the current project assets</b>
 </p>
 
-Current repository assets include the workflow preview above. If you export Streamlit or Next.js UI screenshots later, they can be added here as dedicated product views.
+Current repository assets include the workflow preview above. If you export Next.js UI screenshots later, they can be added here as dedicated product views.
 
 ## 🛠️ Troubleshooting
 
@@ -2140,15 +2120,9 @@ Verify that:
 - The `model_path` stored in the database matches the real file path.
 - The runtime environment can access `ml_models/`.
 
-### Streamlit or frontend port already in use
+### Frontend port already in use
 
 Use a different port.
-
-Streamlit example:
-
-```bash
-streamlit run streamlit_app.py --server.port 8502
-```
 
 Next.js example:
 
@@ -2161,7 +2135,7 @@ npm run dev -- --port 3001
 
 - Start with Option A unless you specifically need a separate worker process.
 - Use the FastAPI docs at `/docs` for interactive testing.
-- If you are only validating the backend, Streamlit and Next.js are optional.
+- If you are only validating the backend, Next.js is optional.
 - Verify health, DB, and product-code endpoints before attempting a full audit.
 
 ## 💻 Next.js Premium Web Operations Console

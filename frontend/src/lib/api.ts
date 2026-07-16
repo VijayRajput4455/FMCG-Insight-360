@@ -87,6 +87,17 @@ export async function submitAuditByCode(productCode: string, imageUrl: string): 
   return response.json();
 }
 
+export type SubmitAuditBulkItem = {
+  filename: string;
+  audit_id?: number;
+  status: string;
+  message?: string;
+  [key: string]: unknown;
+};
+
+export type SubmitAuditBulkResponse = SubmitAuditBulkItem[];
+
+
 export async function submitAuditByUpload(productCode: string, file: File): Promise<SubmitAuditResponse> {
   const formData = new FormData();
   formData.append("product_code", productCode);
@@ -99,6 +110,25 @@ export async function submitAuditByUpload(productCode: string, file: File): Prom
 
   if (!response.ok) {
     throw new Error(`Upload submit failed (${response.status})`);
+  }
+
+  return response.json();
+}
+
+export async function submitAuditByUploadBulk(productCode: string, files: File[]): Promise<SubmitAuditBulkResponse> {
+  const formData = new FormData();
+  formData.append("product_code", productCode);
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  const response = await fetch(buildUrl("/api/v1/audit/by-code/upload-bulk"), {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Bulk upload submit failed (${response.status})`);
   }
 
   return response.json();

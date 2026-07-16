@@ -324,6 +324,58 @@ async def detect_products_by_code_upload_api(
 		}
 
 
+@router.post("/by-code/upload-bulk")
+async def detect_products_by_code_upload_bulk_api(
+	request: Request,
+	product_code: str = Form(..., min_length=2),
+	files: list[UploadFile] = File(...),
+	db: Session = Depends(get_db),
+	rate_limit: None = Depends(get_rate_limit_dependency("by-code-upload-bulk")),
+):
+	logger.info("Upload-bulk detection request received | product_code=%s | files_count=%d", product_code, len(files))
+
+	results = []
+	for file in files:
+		file_ref = file.filename or "uploaded-file"
+		try:
+			contents = await file.read()
+			if not contents:
+				results.append({
+					"filename": file_ref,
+					"status": "error",
+					"message": "Empty file",
+				})
+				continue
+
+			np_arr = np.frombuffer(contents, np.uint8)
+			image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+			if image is None:
+				results.append({
+					"filename": file_ref,
+					"status": "error",
+					"message": "Invalid image format",
+				})
+				continue
+
+			# Queue it
+			res = _queue_audit_pipeline(db, product_code, image, file_ref)
+			if isinstance(res, dict):
+				res["filename"] = file_ref
+			results.append(res)
+
+		except Exception as e:
+			increment_audit_request(product_code, "error")
+			logger.exception("Unhandled upload-bulk detection failure for file %s -> %s", file_ref, str(e))
+			results.append({
+				"filename": file_ref,
+				"status": "error",
+				"message": f"Internal server error during detection: {str(e)}",
+			})
+
+	return results
+
+
 @router.get("/{audit_id}", summary="Get audit status and result")
 def get_audit_status(audit_id: int, request: Request, db: Session = Depends(get_db)):
 	cache_key = _audit_result_cache_key(audit_id)
