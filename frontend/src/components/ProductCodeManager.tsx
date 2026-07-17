@@ -271,7 +271,7 @@ export default function ProductCodeManager() {
 
       {/* 2. Four Statistics Cards */}
       <section className="kpi-grid">
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--accent-primary)" }}>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
           <span className="kpi-label">Total Product Codes</span>
           <strong className="kpi-value">{stats.total}</strong>
           <span className="kpi-sub">Total database SKU mappings</span>
@@ -281,7 +281,7 @@ export default function ProductCodeManager() {
           <strong className="kpi-value">{stats.documented}</strong>
           <span className="kpi-sub">SKUs with description metadata</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--accent-secondary)" }}>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--success)" }}>
           <span className="kpi-label">Visible Codes</span>
           <strong className="kpi-value">{stats.visible}</strong>
           <span className="kpi-sub">Matching search query filters</span>

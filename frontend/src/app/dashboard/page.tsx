@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { getHistory, type AuditHistoryItem } from "@/lib/history";
-import { listAudits, getAuditStatus, resolveApiAssetUrl, type AuditLogItem } from "@/lib/api";
+import { listAudits, getAuditStatus, resolveApiAssetUrl, listModels, listProductCodes, type AuditLogItem, type Model, type ProductCode } from "@/lib/api";
 
 type EnhancedDashboardItem = AuditLogItem & {
   confidence: number;
@@ -17,6 +17,8 @@ export default function DashboardPage() {
   const [localItems, setLocalItems] = useState<AuditHistoryItem[]>([]);
   const [dbItems, setDbItems] = useState<EnhancedDashboardItem[]>([]);
   const [allDbLogs, setAllDbLogs] = useState<AuditLogItem[]>([]);
+  const [registeredModels, setRegisteredModels] = useState<Model[]>([]);
+  const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,6 +29,18 @@ export default function DashboardPage() {
         // Fetch up to 1000 items to calculate true KPIs and totals
         const logs = await listAudits(undefined, undefined, 0, 1000);
         setAllDbLogs(logs);
+
+        // Fetch models and product codes
+        try {
+          const [modelsList, codesList] = await Promise.all([
+            listModels(),
+            listProductCodes()
+          ]);
+          setRegisteredModels(modelsList);
+          setProductCodes(codesList);
+        } catch (dbErr) {
+          console.error("Failed to load models or product codes", dbErr);
+        }
 
         // Fetch detailed results only for the recent 15 audits to speed up loading
         const detailed = await Promise.all(
@@ -231,38 +245,53 @@ export default function DashboardPage() {
     return { points, pathD, fillD, labels, counts, maxVal };
   }, [allDbLogs]);
 
-  // 3. Top Model Requests Received (starts at 0 hits, pure DB tracking)
+  // 3. Top Model Requests Received (dynamic from registered models)
   const modelRequests = useMemo(() => {
-    const modelHits: Record<string, number> = {
-      "YOLOv8s_Drinks": 0,
-      "Snacks_Segmenter": 0,
-      "OCR_Text_Reader": 0,
-      "ResNet_Classifier": 0
-    };
+    if (registeredModels.length === 0) {
+      return [];
+    }
 
-    allDbLogs.forEach(log => {
-      const code = (log.product_code || "").toLowerCase();
-      let model = "ResNet_Classifier";
-      if (code.includes("coca") || code.includes("pepsi") || code.includes("drink") || code.includes("beverage")) {
-        model = "YOLOv8s_Drinks";
-      } else if (code.includes("lays") || code.includes("chip") || code.includes("snack") || code.includes("doritos")) {
-        model = "Snacks_Segmenter";
-      } else if (code.includes("soap") || code.includes("colgate") || code.includes("shampoo") || code.includes("care")) {
-        model = "OCR_Text_Reader";
-      }
-      modelHits[model] = (modelHits[model] || 0) + 1;
+    const modelHits: Record<number, number> = {};
+    registeredModels.forEach(m => {
+      modelHits[m.id] = 0;
     });
 
-    const list = Object.entries(modelHits)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
+    allDbLogs.forEach(log => {
+      const logCode = (log.product_code || "").toLowerCase().trim();
+      // Find matching product code in registry
+      const matchedCode = productCodes.find(pc => pc.product_code.toLowerCase().trim() === logCode);
+      if (matchedCode) {
+        // Find models matching this product code id
+        registeredModels.forEach(model => {
+          if (model.product_code_id === matchedCode.id) {
+            modelHits[model.id] = (modelHits[model.id] || 0) + 1;
+          }
+        });
+      }
+    });
 
-    const totalHits = list.reduce((sum, item) => sum + item.count, 0) || 1;
-    return list.map(item => ({
-      ...item,
-      percentage: Math.round((item.count / totalHits) * 100)
-    }));
-  }, [allDbLogs]);
+    const sorted = [...registeredModels].sort((a, b) => {
+      const countA = modelHits[a.id] || 0;
+      const countB = modelHits[b.id] || 0;
+      if (countB !== countA) {
+        return countB - countA;
+      }
+      return b.id - a.id; // Show latest registered models first if counts are equal
+    });
+
+    const top5 = sorted.slice(0, 5);
+    const totalHits = top5.reduce((sum, item) => sum + (modelHits[item.id] || 0), 0);
+
+    return top5.map(item => {
+      const count = modelHits[item.id] || 0;
+      const percentage = totalHits > 0 ? Math.round((count / totalHits) * 100) : 0;
+      return {
+        name: item.model_name,
+        count,
+        percentage
+      };
+    });
+  }, [allDbLogs, registeredModels, productCodes]);
 
   // 4. Top Category API Hits (starts at 0 hits, pure DB tracking)
   const categoryHits = useMemo(() => {
@@ -320,7 +349,7 @@ export default function DashboardPage() {
       {/* KPI Cards Grid */}
       <section className="kpi-grid">
         {/* Card 1: Total Audits */}
-        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--accent-primary)" }}>
+        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--danger)" }}>
           <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", flexShrink: 0 }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
           </div>
@@ -448,20 +477,27 @@ export default function DashboardPage() {
           </div>
 
           <div className="stack" style={{ gap: "0.85rem" }}>
-            {modelRequests.slice(0, 5).map((item) => (
-              <div key={item.name} className="stack" style={{ gap: "0.25rem" }}>
-                <div className="row-between" style={{ fontSize: "0.8rem" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.5"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-                    <strong>{item.name}</strong>
-                  </div>
-                  <span className="subtle">{item.count} ({item.percentage}%)</span>
-                </div>
-                <div style={{ width: "100%", height: "8px", background: "var(--bg)", borderRadius: "99px", overflow: "hidden" }}>
-                  <div style={{ width: `${item.percentage}%`, height: "100%", background: "linear-gradient(90deg, var(--accent-primary), var(--accent-secondary))", borderRadius: "99px" }} />
-                </div>
+            {modelRequests.length === 0 ? (
+              <div className="stack" style={{ alignItems: "center", justifyContent: "center", padding: "2rem 0", color: "var(--text-secondary)", fontSize: "0.85rem", gap: "0.5rem" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                <span>No models present</span>
               </div>
-            ))}
+            ) : (
+              modelRequests.map((item) => (
+                <div key={item.name} className="stack" style={{ gap: "0.25rem" }}>
+                  <div className="row-between" style={{ fontSize: "0.8rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.5"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                      <strong>{item.name}</strong>
+                    </div>
+                    <span className="subtle">{item.count} ({item.percentage}%)</span>
+                  </div>
+                  <div style={{ width: "100%", height: "8px", background: "var(--bg)", borderRadius: "99px", overflow: "hidden" }}>
+                    <div style={{ width: `${item.percentage}%`, height: "100%", background: "linear-gradient(90deg, var(--accent-primary), var(--accent-secondary))", borderRadius: "99px" }} />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </section>
 

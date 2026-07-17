@@ -68,7 +68,7 @@ export default function AnalyticsPage() {
 
       {/* 2. Four KPI Cards */}
       <section className="kpi-grid">
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--accent-primary)" }}>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
           <span className="kpi-label">Audited Revenue Save</span>
           <strong className="kpi-value">$24,820</strong>
           <span className="kpi-sub" style={{ color: "var(--success)", fontWeight: 700 }}>↑ +14.2% cost protection</span>
@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
           <strong className="kpi-value">99.62%</strong>
           <span className="kpi-sub" style={{ color: "var(--success)", fontWeight: 700 }}>↑ +0.3% YOLO model update</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--warning)" }}>
           <span className="kpi-label">Detections Issues</span>
           <strong className="kpi-value">14</strong>
           <span className="kpi-sub" style={{ color: "var(--danger)", fontWeight: 700 }}>↓ -2.5% scan blur drops</span>

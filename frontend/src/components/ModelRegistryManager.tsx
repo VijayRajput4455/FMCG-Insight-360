@@ -209,22 +209,22 @@ export default function ModelRegistryManager() {
       </div>
 
       <section className="kpi-grid">
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--accent-primary)" }}>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
           <span className="kpi-label">Total Models</span>
           <strong className="kpi-value">{stats.total}</strong>
           <span className="kpi-sub">Total custom weights loaded</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--success)" }}>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--info)" }}>
           <span className="kpi-label">Best Accuracy</span>
           <strong className="kpi-value">{stats.bestAcc}%</strong>
           <span className="kpi-sub">Highest inference test benchmark</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--accent-secondary)" }}>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--success)" }}>
           <span className="kpi-label">Running Container Jobs</span>
           <strong className="kpi-value">{stats.running}</strong>
           <span className="kpi-sub">Active GPU workers processing</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--warning)" }}>
           <span className="kpi-label">Offline Containers</span>
           <strong className="kpi-value">{stats.offline}</strong>
           <span className="kpi-sub">Stopped or undeployed weights</span>

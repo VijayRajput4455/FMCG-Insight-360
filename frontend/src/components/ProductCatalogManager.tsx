@@ -77,6 +77,18 @@ export default function ProductCatalogManager() {
     return Array.from(brandsSet);
   }, [products]);
 
+  const uniqueCategoriesCount = useMemo(() => {
+    const cats = new Set<string>();
+    products.forEach(p => {
+      if (p.category) cats.add(p.category.trim());
+    });
+    return cats.size;
+  }, [products]);
+
+  const aiCodeCount = useMemo(() => {
+    return products.filter(p => p.ai_code && p.ai_code.trim() !== "").length;
+  }, [products]);
+
   // Client-Side Simulated stock levels and price mapping
   const items = useMemo(() => {
     return products.map(p => {
@@ -261,6 +273,30 @@ export default function ProductCatalogManager() {
           </button>
         </div>
       </div>
+
+      {/* 1.5. Four KPI Statistics Cards */}
+      <section className="kpi-grid">
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
+          <span className="kpi-label">Total Products</span>
+          <strong className="kpi-value">{products.length}</strong>
+          <span className="kpi-sub">Total database SKU records</span>
+        </div>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--info)" }}>
+          <span className="kpi-label">Total Brands</span>
+          <strong className="kpi-value">{uniqueBrands.length}</strong>
+          <span className="kpi-sub">Unique manufactured labels</span>
+        </div>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--success)" }}>
+          <span className="kpi-label">Categories</span>
+          <strong className="kpi-value">{uniqueCategoriesCount}</strong>
+          <span className="kpi-sub">Distinct department divisions</span>
+        </div>
+        <div className="kpi-card" style={{ borderLeft: "4px solid var(--warning)" }}>
+          <span className="kpi-label">AI Code Count</span>
+          <strong className="kpi-value">{aiCodeCount}</strong>
+          <span className="kpi-sub">Neural identifier classifications</span>
+        </div>
+      </section>
 
       {/* 2. Inline Add / Edit Form Panel */}
       {showForm && (
