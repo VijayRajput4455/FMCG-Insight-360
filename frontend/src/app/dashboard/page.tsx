@@ -103,23 +103,101 @@ export default function DashboardPage() {
     // Average accuracy calculations from loaded detailed data
     const completedDetails = dbItems.filter(i => i.status === "completed");
     const totalAcc = completedDetails.reduce((acc, curr) => acc + curr.confidence, 0);
-    const avgAccuracy = completedDetails.length > 0 ? Number((totalAcc / completedDetails.length).toFixed(1)) : 87.4;
+    const avgAccuracy = completedDetails.length > 0 ? Number((totalAcc / completedDetails.length).toFixed(1)) : 0;
 
     // Pass rate calculations
     const completedCount = completed.length;
-    const passRate = total > 0 ? Math.round((completedCount / (completedCount + failed || 1)) * 100) : 78.1;
+    const passRate = total > 0 ? Math.round((completedCount / (completedCount + failed || 1)) * 100) : 0;
 
     return {
-      total: total > 0 ? total : 256,
-      accuracy: avgAccuracy,
-      passRate: passRate,
-      issues: failed > 0 ? failed : 342
+      total,
+      accuracy: avgAccuracy, 
+      passRate,
+      issues: failed
     };
   }, [allDbLogs, dbItems, localItems]);
 
-  // 2. Weekly Area Line Chart coordinates
+  // Calculate actual change deltas dynamically from timestamps
+  const deltas = useMemo(() => {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const thisWeekLogs = allDbLogs.filter(l => new Date(l.created_at) >= sevenDaysAgo);
+    const lastWeekLogs = allDbLogs.filter(l => {
+      const dt = new Date(l.created_at);
+      return dt >= fourteenDaysAgo && dt < sevenDaysAgo;
+    });
+
+    const thisWeekCount = thisWeekLogs.length;
+    const lastWeekCount = lastWeekLogs.length;
+
+    let totalDelta = "0%";
+    let totalIsPositive = true;
+
+    if (lastWeekCount > 0) {
+      const diff = ((thisWeekCount - lastWeekCount) / lastWeekCount) * 100;
+      totalDelta = `${Math.abs(Math.round(diff))}%`;
+      totalIsPositive = diff >= 0;
+    } else if (thisWeekCount > 0) {
+      totalDelta = `+${thisWeekCount} runs`;
+      totalIsPositive = true;
+    }
+
+    // Pass rate delta
+    const thisWeekCompleted = thisWeekLogs.filter(l => l.status === "completed").length;
+    const thisWeekFailed = thisWeekLogs.filter(l => l.status === "failed").length;
+    const thisWeekPass = thisWeekCount > 0 ? Math.round((thisWeekCompleted / (thisWeekCompleted + thisWeekFailed || 1)) * 100) : 0;
+
+    const lastWeekCompleted = lastWeekLogs.filter(l => l.status === "completed").length;
+    const lastWeekFailed = lastWeekLogs.filter(l => l.status === "failed").length;
+    const lastWeekPass = lastWeekCount > 0 ? Math.round((lastWeekCompleted / (lastWeekCompleted + lastWeekFailed || 1)) * 100) : 0;
+
+    const passDiff = thisWeekPass - lastWeekPass;
+    const passDelta = `${Math.abs(passDiff)}%`;
+    const passIsPositive = passDiff >= 0;
+
+    // Fail rate delta
+    const failDiff = thisWeekFailed - lastWeekFailed;
+    const failDelta = `${Math.abs(failDiff)} runs`;
+    const failIsPositive = failDiff <= 0; // Less failures is positive
+
+    // Accuracy delta
+    const thisWeekCompletedAccs = dbItems.filter(item => {
+      const dt = new Date(item.created_at);
+      return dt >= sevenDaysAgo && item.status === "completed";
+    });
+    const lastWeekCompletedAccs = dbItems.filter(item => {
+      const dt = new Date(item.created_at);
+      return dt >= fourteenDaysAgo && dt < sevenDaysAgo && item.status === "completed";
+    });
+
+    const thisWeekAvgAcc = thisWeekCompletedAccs.length > 0
+      ? thisWeekCompletedAccs.reduce((sum, item) => sum + item.confidence, 0) / thisWeekCompletedAccs.length
+      : 0;
+    const lastWeekAvgAcc = lastWeekCompletedAccs.length > 0
+      ? lastWeekCompletedAccs.reduce((sum, item) => sum + item.confidence, 0) / lastWeekCompletedAccs.length
+      : 0;
+
+    const accDiff = thisWeekAvgAcc - lastWeekAvgAcc;
+    const accDelta = `${Math.abs(Number(accDiff.toFixed(1)))}%`;
+    const accIsPositive = accDiff >= 0;
+
+    return {
+      totalDelta,
+      totalIsPositive,
+      passDelta,
+      passIsPositive,
+      failDelta,
+      failIsPositive,
+      accDelta,
+      accIsPositive
+    };
+  }, [allDbLogs, dbItems]);
+
+  // 2. Weekly Area Line Chart coordinates (Starts at 0, no default curves)
   const trendChartData = useMemo(() => {
-    const counts = [55, 72, 68, 85, 92, 78, 62]; // Defaults
+    const counts = [0, 0, 0, 0, 0, 0, 0];
     const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const today = new Date();
     
@@ -132,15 +210,13 @@ export default function DashboardPage() {
       const matchedCount = allDbLogs.filter(
         (item) => new Date(item.created_at).toDateString() === dateStr
       ).length;
-      if (allDbLogs.length > 0) {
-        counts[6 - i] = matchedCount;
-      }
+      counts[6 - i] = matchedCount;
     }
 
-    const maxVal = Math.max(...counts, 100);
+    const maxVal = Math.max(...counts, 10);
     const points = counts.map((count, idx) => {
-      const x = 50 + idx * 60;
-      const y = 120 - (count / maxVal) * 80;
+      const x = 10 + idx * 63.3;
+      const y = 96 - (count / maxVal) * 80;
       return { x, y, count };
     });
 
@@ -149,20 +225,19 @@ export default function DashboardPage() {
     }, "");
 
     const fillD = points.length > 0
-      ? `${pathD} L ${points[points.length - 1].x} 125 L ${points[0].x} 125 Z`
+      ? `${pathD} L ${points[points.length - 1].x} 100 L ${points[0].x} 100 Z`
       : "";
 
     return { points, pathD, fillD, labels, counts, maxVal };
   }, [allDbLogs]);
 
-  // 3. Top Model Requests Received Analytics (progress bar list)
+  // 3. Top Model Requests Received (starts at 0 hits, pure DB tracking)
   const modelRequests = useMemo(() => {
     const modelHits: Record<string, number> = {
-      "YOLOv8s_Drinks": 120,
-      "Snacks_Segmenter": 85,
-      "OCR_Text_Reader": 60,
-      "ResNet_Classifier": 45,
-      "Other Models": 32
+      "YOLOv8s_Drinks": 0,
+      "Snacks_Segmenter": 0,
+      "OCR_Text_Reader": 0,
+      "ResNet_Classifier": 0
     };
 
     allDbLogs.forEach(log => {
@@ -189,14 +264,14 @@ export default function DashboardPage() {
     }));
   }, [allDbLogs]);
 
-  // 4. Top Category API Hits (numbered list)
+  // 4. Top Category API Hits (starts at 0 hits, pure DB tracking)
   const categoryHits = useMemo(() => {
     const categoriesList: Record<string, number> = {
-      "Beverages": 92,
-      "Snacks": 88,
-      "Dairy": 87,
-      "Personal Care": 85,
-      "Other": 82
+      "Beverages": 0,
+      "Snacks": 0,
+      "Dairy": 0,
+      "Personal Care": 0,
+      "Other": 0
     };
 
     allDbLogs.forEach(log => {
@@ -242,53 +317,61 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI Cards Grid - explicitly configured inline to place icons on the left */}
+      {/* KPI Cards Grid */}
       <section className="kpi-grid">
         {/* Card 1: Total Audits */}
-        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem" }}>
+        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--accent-primary)" }}>
           <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", flexShrink: 0 }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
           </div>
           <div className="stack" style={{ gap: "0.25rem" }}>
             <span className="kpi-label">Total Audits</span>
             <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block" }}>{kpis.total}</strong>
-            <span style={{ fontSize: "0.78rem", color: "var(--success)", fontWeight: 700 }}>↑ 12.5% vs last week</span>
+            <span style={{ fontSize: "0.78rem", color: deltas.totalIsPositive ? "var(--success)" : "var(--danger)", fontWeight: 700 }}>
+              {kpis.total > 0 ? `${deltas.totalIsPositive ? "↑" : "↓"} ${deltas.totalDelta} vs last week` : "No audits recorded"}
+            </span>
           </div>
         </div>
 
         {/* Card 2: Average Accuracy */}
-        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem" }}>
+        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--info)" }}>
           <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", flexShrink: 0 }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
           </div>
           <div className="stack" style={{ gap: "0.25rem" }}>
             <span className="kpi-label">Average Accuracy</span>
             <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block" }}>{kpis.accuracy}%</strong>
-            <span style={{ fontSize: "0.78rem", color: "var(--success)", fontWeight: 700 }}>↑ 8.2% vs last week</span>
+            <span style={{ fontSize: "0.78rem", color: deltas.accIsPositive ? "var(--success)" : "var(--danger)", fontWeight: 700 }}>
+              {deltas.accIsPositive ? "↑" : "↓"} {deltas.accDelta} vs last week
+            </span>
           </div>
         </div>
 
         {/* Card 3: Pass Rate */}
-        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem" }}>
+        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--success)" }}>
           <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", flexShrink: 0 }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><polyline points="8 12 11 15 16 10"/></svg>
           </div>
           <div className="stack" style={{ gap: "0.25rem" }}>
             <span className="kpi-label">Pass Rate</span>
             <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block" }}>{kpis.passRate}%</strong>
-            <span style={{ fontSize: "0.78rem", color: "var(--success)", fontWeight: 700 }}>↑ 6.1% vs last week</span>
+            <span style={{ fontSize: "0.78rem", color: deltas.passIsPositive ? "var(--success)" : "var(--danger)", fontWeight: 700 }}>
+              {deltas.passIsPositive ? "↑" : "↓"} {deltas.passDelta} vs last week
+            </span>
           </div>
         </div>
 
         {/* Card 4: Issues Found */}
-        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem" }}>
+        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--warning)" }}>
           <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF3E0", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--warning)", flexShrink: 0 }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
           <div className="stack" style={{ gap: "0.25rem" }}>
             <span className="kpi-label">Issues Found</span>
             <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block" }}>{kpis.issues}</strong>
-            <span style={{ fontSize: "0.78rem", color: "var(--danger)", fontWeight: 700 }}>↓ 5.4% vs last week</span>
+            <span style={{ fontSize: "0.78rem", color: deltas.failIsPositive ? "var(--success)" : "var(--danger)", fontWeight: 700 }}>
+              {deltas.failIsPositive ? "↓" : "↑"} {deltas.failDelta} vs last week
+            </span>
           </div>
         </div>
       </section>
@@ -306,27 +389,27 @@ export default function DashboardPage() {
             </select>
           </div>
 
-          <div style={{ position: "relative", width: "100%", height: "180px" }}>
-            <svg viewBox="0 0 400 140" style={{ width: "100%", height: "100%" }}>
-              <line x1="30" y1="20" x2="380" y2="20" stroke="var(--border)" strokeWidth="0.8" strokeDasharray="3" />
-              <line x1="30" y1="60" x2="380" y2="60" stroke="var(--border)" strokeWidth="0.8" strokeDasharray="3" />
-              <line x1="30" y1="100" x2="380" y2="100" stroke="var(--border)" strokeWidth="0.8" />
+          <div style={{ position: "relative", width: "100%", height: "145px" }}>
+            <svg viewBox="0 0 400 120" style={{ width: "98%", height: "122%" }}>
+              <line x1="10" y1="16" x2="390" y2="16" stroke="var(--border)" strokeWidth="0.8" strokeDasharray="3" opacity="0.3" />
+              <line x1="10" y1="56" x2="390" y2="56" stroke="var(--border)" strokeWidth="0.8" strokeDasharray="3" opacity="0.3" />
+              <line x1="10" y1="96" x2="390" y2="96" stroke="var(--border)" strokeWidth="0.8" />
 
               {/* Chart Gradient Area */}
               {trendChartData.fillD && (
-                <path d={trendChartData.fillD.replace(/120/g, "100")} fill="url(#chart-grad-dashboard-v3)" opacity="0.08" />
+                <path d={trendChartData.fillD.replace(/100/g, "96")} fill="url(#chart-grad-dashboard-v5)" opacity="0.08" />
               )}
 
               {/* Sparkline Curve */}
               {trendChartData.pathD && (
-                <path d={trendChartData.pathD.replace(/120/g, "100")} fill="none" stroke="var(--accent-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                <path d={trendChartData.pathD} fill="none" stroke="var(--accent-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               )}
 
               {/* Nodes */}
               {trendChartData.points.map((pt, idx) => (
                 <g key={idx}>
                   <circle cx={pt.x} cy={pt.y} r="4" fill="var(--bg)" stroke="var(--accent-primary)" strokeWidth="2" />
-                  {idx === 4 && (
+                  {pt.count > 0 && (
                     <g>
                       <rect x={pt.x - 30} y={pt.y - 28} width="60" height="20" rx="4" fill="#FFFFFF" stroke="var(--border)" strokeWidth="1" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
                       <text x={pt.x} y={pt.y - 15} textAnchor="middle" fill="var(--text-primary)" fontSize="8" fontWeight="700">
@@ -339,13 +422,13 @@ export default function DashboardPage() {
 
               {/* X Labels */}
               {trendChartData.labels.map((lbl, idx) => (
-                <text key={idx} x={50 + idx * 60} y="116" textAnchor="middle" fill="var(--text-secondary)" fontSize="9" fontWeight="600">
+                <text key={idx} x={10 + idx * 63.3} y="114" textAnchor="middle" fill="var(--text-secondary)" fontSize="9" fontWeight="600">
                   {lbl}
                 </text>
               ))}
 
               <defs>
-                <linearGradient id="chart-grad-dashboard-v3" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="chart-grad-dashboard-v5" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--accent-primary)" />
                   <stop offset="100%" stopColor="transparent" />
                 </linearGradient>
@@ -516,7 +599,7 @@ export default function DashboardPage() {
         <section className="card stack" style={{ gap: "1rem" }}>
           <h2 style={{ fontSize: "1rem", fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>Quick Actions</h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
-            <Link href="/">
+            <Link href="/new-audit">
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem", padding: "0.65rem 0.25rem", border: "1px solid var(--border)", borderRadius: "12px", background: "var(--bg)", cursor: "pointer" }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
                 <span style={{ fontSize: "0.68rem", fontWeight: 700 }}>New Audit</span>

@@ -44,23 +44,56 @@ export default function TopNav() {
           <input 
             type="text" 
             className="topnav-search-input" 
-            placeholder="Search dashboard or records..." 
+            placeholder="Search anything..." 
           />
+          <kbd style={{
+            fontSize: "0.68rem",
+            color: "var(--text-secondary)",
+            background: "rgba(0,0,0,0.03)",
+            border: "1px solid var(--border)",
+            padding: "0.15rem 0.35rem",
+            borderRadius: "6px",
+            fontWeight: 700,
+            fontFamily: "var(--font-sans)",
+            opacity: 0.8,
+            cursor: "default",
+            userSelect: "none"
+          }}>⌘ K</kbd>
         </div>
 
-        {/* Notifications */}
+        {/* Notifications with Number 5 */}
         <button type="button" className="topnav-btn" aria-label="Notifications">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-          <span className="topnav-badge" />
+          <span className="topnav-badge">5</span>
         </button>
 
-        {/* Profile */}
-        <div className="topnav-profile">
-          <div className="topnav-profile-avatar">A</div>
-          <div className="topnav-profile-info">
-            <span className="topnav-profile-name">Admin Console</span>
-            <span className="topnav-profile-role">Super Admin</span>
+        {/* Profile with Avatar Photo and Down Chevron */}
+        <div className="topnav-profile" style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+          <div className="topnav-profile-avatar" style={{ overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img 
+              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80" 
+              alt="Profile Avatar" 
+              style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+            />
           </div>
+          <div className="topnav-profile-info">
+            <span className="topnav-profile-name">Admin User</span>
+            <span className="topnav-profile-role">Administrator</span>
+          </div>
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="12" 
+            height="12" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="var(--text-secondary)" 
+            strokeWidth="2.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            style={{ marginLeft: "0.15rem", opacity: 0.7 }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </div>
       </div>
     </header>

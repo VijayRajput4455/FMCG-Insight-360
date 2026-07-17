@@ -1094,13 +1094,21 @@ pre {
 
 .topnav-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 8px;
-  height: 8px;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
   background-color: var(--danger);
-  border-radius: 50%;
+  border-radius: 99px;
   border: 1.5px solid var(--surface);
+  color: #FFFFFF;
+  font-size: 0.65rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .topnav-profile {
