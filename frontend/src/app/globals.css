@@ -2,8 +2,8 @@
 
 :root {
   --bg: #FAFCF8;
-  --bg-gradient: radial-gradient(at 0% 0%, rgba(46, 125, 50, 0.04) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(67, 160, 71, 0.02) 0px, transparent 50%);
+  --bg-photo: url('/main_background.png');
+  --bg-gradient: none;
   --sidebar-bg: #FFFFFF;
   --surface: #FFFFFF;
   --surface-hover: #F3F8F2;
@@ -43,8 +43,7 @@
 
 [data-theme="dark"] {
   --bg: #0C0F0C;
-  --bg-gradient: radial-gradient(at 0% 0%, rgba(46, 125, 50, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(30, 41, 59, 0.05) 0px, transparent 50%);
+  --bg-gradient: none;
   --sidebar-bg: rgba(18, 24, 18, 0.95);
   --surface: rgba(24, 32, 24, 0.7);
   --surface-hover: rgba(40, 52, 40, 0.8);
@@ -81,7 +80,10 @@ html, body {
   padding: 0;
   font-family: var(--font-family);
   background-color: var(--bg);
-  background-image: var(--bg-gradient);
+  background-image: var(--bg-photo);
+  background-size: contain;
+  background-position: top center;
+  background-repeat: no-repeat;
   background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
@@ -89,7 +91,7 @@ html, body {
 }
 
 body::before {
-  content: '';
+  content: none;
   position: fixed;
   top: 0;
   right: 0;
@@ -103,7 +105,7 @@ body::before {
 }
 
 body::after {
-  content: '';
+  content: none;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -136,6 +138,18 @@ body::after {
   height: 100vh;
   z-index: 10;
   box-shadow: var(--shadow);
+}
+
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--accent-primary) 0%, transparent 28%, transparent 72%, var(--accent-secondary) 100%);
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .sidebar-logo {
@@ -174,17 +188,29 @@ body::after {
   font-weight: 600;
   font-size: 0.9rem;
   transition: var(--transition);
+  position: relative;
 }
 
 .sidebar-link:hover {
   background: var(--surface-hover);
-  color: var(--text-primary);
+  color: var(--accent-primary);
 }
 
 .sidebar-link.active {
   background: var(--accent-light);
   color: var(--accent-primary);
   font-weight: 700;
+}
+
+.sidebar-link.active::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 99px;
+  background: linear-gradient(180deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
 }
 
 .main-wrapper {
@@ -1063,6 +1089,18 @@ pre {
   z-index: 9;
 }
 
+.topnav::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent-primary) 12%, var(--accent-secondary) 50%, var(--accent-primary) 88%, transparent 100%);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .topnav-search-container {
   display: flex;
   align-items: center;
@@ -1122,7 +1160,7 @@ pre {
 
 .topnav-btn:hover {
   background: var(--surface-hover) !important;
-  color: var(--text-primary);
+  color: var(--accent-primary);
 }
 
 .topnav-badge {
@@ -1155,7 +1193,7 @@ pre {
 }
 
 .topnav-profile:hover {
-  background: var(--surface-hover);
+  background: var(--accent-light);
 }
 
 .topnav-profile-avatar {
@@ -1169,7 +1207,7 @@ pre {
   justify-content: center;
   font-weight: 700;
   font-size: 0.9rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--accent-glow);
 }
 
 .topnav-profile-info {

@@ -87,7 +87,7 @@ export default function TopNav() {
           <span key={idx} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <span style={{ 
               fontWeight: idx === breadcrumbs.length - 1 ? 600 : 500,
-              color: idx === breadcrumbs.length - 1 ? "var(--text-primary)" : "var(--text-secondary)"
+              color: idx === breadcrumbs.length - 1 ? "var(--accent-primary)" : "var(--text-secondary)"
             }}>
               {crumb}
             </span>
