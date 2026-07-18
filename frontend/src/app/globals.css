@@ -226,6 +226,15 @@ body::after {
   font-size: 0.9rem;
 }
 
+.main-header-line {
+  width: 84px;
+  height: 4px;
+  border-radius: 99px;
+  margin-top: 0.85rem;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  box-shadow: 0 2px 12px var(--accent-glow);
+}
+
 h2, h3 {
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -366,12 +375,24 @@ textarea {
   font-size: 0.82rem;
   cursor: pointer;
   transition: var(--transition);
+  position: relative;
 }
 
 .seg.active {
   background: var(--segmented-active-bg);
-  color: var(--text-primary);
+  color: var(--accent-primary);
   box-shadow: var(--shadow-sm);
+}
+
+.seg.active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
 }
 
 /* --- Buttons --- */
@@ -851,6 +872,7 @@ tbody tr:last-child td {
   border-radius: 0;
   cursor: pointer;
   transition: var(--transition);
+  position: relative;
 }
 
 .settings-tab-btn:hover {
@@ -861,7 +883,18 @@ tbody tr:last-child td {
 
 .settings-tab-btn.active {
   border-bottom-color: var(--accent-primary);
-  color: var(--accent-secondary);
+  color: var(--accent-primary);
+}
+
+.settings-tab-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -2px;
+  height: 2px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
 }
 
 /* --- Double column settings layout --- */

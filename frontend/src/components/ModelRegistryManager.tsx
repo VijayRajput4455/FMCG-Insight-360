@@ -6,6 +6,7 @@ import {
   createModel,
   updateModel,
   deleteModel,
+  toggleModelActive,
   listProductCodes,
   type Model,
   type ProductCode,
@@ -181,6 +182,17 @@ export default function ModelRegistryManager() {
     }
   };
 
+  const handleToggleActive = async (id: number, currentActive: boolean) => {
+    try {
+      await toggleModelActive(id);
+      setSuccess(`Model ${currentActive ? "deactivated" : "activated"} successfully!`);
+      await loadData();
+      setTimeout(() => setSuccess(null), 2500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to toggle model status");
+    }
+  };
+
   return (
     <div className="stack" style={{ gap: "2rem" }}>
       {error && (
@@ -196,49 +208,56 @@ export default function ModelRegistryManager() {
         </div>
       )}
 
-      {/* 1. Header and Statistics */}
-      <div className="row-between" style={{ alignItems: "center" }}>
-        <div>
-          <span className="kpi-label" style={{ color: "var(--accent-primary)" }}>AI Operations</span>
-          <h2 style={{ fontSize: "1.6rem", fontWeight: 800, margin: "0.25rem 0" }}>Neural Model Registry</h2>
-          <p className="subtle">Benchmark computer vision accuracy weights, modify hyper-parameters, and deploy containers.</p>
-        </div>
-        <button type="button" onClick={() => setShowForm(!showForm)}>
-          {showForm ? "Cancel Adding" : "+ Register Custom Model"}
-        </button>
-      </div>
-
+      {/* 1. Four KPI Statistics Cards */}
       <section className="kpi-grid">
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
-          <span className="kpi-label">Total Models</span>
-          <strong className="kpi-value">{stats.total}</strong>
-          <span className="kpi-sub">Total custom weights loaded</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #E53935", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF3F3 40%, #FFCDD2 70%, #EF5350 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#C62828", fontWeight: 700 }}>Total Models</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{stats.total}</strong>
+          <span className="kpi-sub" style={{ color: "#B71C1C", fontWeight: 500 }}>Total custom weights loaded</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--info)" }}>
-          <span className="kpi-label">Best Accuracy</span>
-          <strong className="kpi-value">{stats.bestAcc}%</strong>
-          <span className="kpi-sub">Highest inference test benchmark</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #1E88E5", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F8FF 40%, #B3E5FC 70%, #42A5F5 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#0D47A1", fontWeight: 700 }}>Best Accuracy</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{stats.bestAcc}%</strong>
+          <span className="kpi-sub" style={{ color: "#0D47A1", fontWeight: 500 }}>Highest inference benchmark</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--success)" }}>
-          <span className="kpi-label">Running Container Jobs</span>
-          <strong className="kpi-value">{stats.running}</strong>
-          <span className="kpi-sub">Active GPU workers processing</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #43A047", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F9F1 40%, #C8E6C9 70%, #66BB6A 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#1B5E20", fontWeight: 700 }}>Running Jobs</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{stats.running}</strong>
+          <span className="kpi-sub" style={{ color: "#1B5E20", fontWeight: 500 }}>Active GPU worker threads</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--warning)" }}>
-          <span className="kpi-label">Offline Containers</span>
-          <strong className="kpi-value">{stats.offline}</strong>
-          <span className="kpi-sub">Stopped or undeployed weights</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #FB8C00", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF8F1 40%, #FFE0B2 70%, #FFA726 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#E65100", fontWeight: 700 }}>Offline Containers</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{stats.offline}</strong>
+          <span className="kpi-sub" style={{ color: "#D84315", fontWeight: 500 }}>Undeployed weight systems</span>
         </div>
       </section>
 
-      {/* 2. Registration Form Panel */}
+      {/* 2. Cohesive Actions Toolbar Card */}
+      <section className="card row-between" style={{ padding: "1.25rem", alignItems: "center", flexWrap: "wrap", gap: "1rem", boxShadow: "var(--shadow-sm)", borderLeft: "4px solid #43A047" }}>
+        <div>
+          <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)" }}>Registry Operations Panel</span>
+        </div>
+        <div>
+          <button type="button" style={{ padding: "0.5rem 1.25rem", fontSize: "0.85rem", borderRadius: "99px" }} onClick={() => setShowForm(!showForm)}>
+            {showForm ? "Cancel Model Form" : "+ Register Custom Model"}
+          </button>
+        </div>
+      </section>
+
+      {/* 3. Registration Form Panel */}
       {showForm && (
-        <section className="card">
-          <h3>{editId ? "Configure Inference Hyperparameters" : "Register New Neural Network Weights"}</h3>
-          <form onSubmit={handleSubmit} className="stack" style={{ marginTop: "1rem", gap: "1rem" }}>
+        <section className="card" style={{
+          background: "linear-gradient(135deg, #FAFCF8 0%, #FFFFFF 100%)",
+          border: "1px solid rgba(46, 125, 50, 0.12)",
+          padding: "1.75rem",
+          boxShadow: "var(--shadow-sm)",
+          borderLeft: "4px solid #FB8C00"
+        }}>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>{editId ? "Configure Inference Hyperparameters" : "Register New Neural Network Weights"}</h3>
+          <form onSubmit={handleSubmit} className="stack" style={{ marginTop: "1.25rem", gap: "1.25rem" }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.25rem" }}>
-              <label>
-                <span>Model Name *</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Model Name *</span>
                 <input 
                   value={modelName} 
                   onChange={(e) => setModelName(e.target.value)} 
@@ -247,8 +266,8 @@ export default function ModelRegistryManager() {
                 />
               </label>
 
-              <label>
-                <span>Weights Storage Path *</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Weights Storage Path *</span>
                 <input 
                   value={modelPath} 
                   onChange={(e) => setModelPath(e.target.value)} 
@@ -257,8 +276,8 @@ export default function ModelRegistryManager() {
                 />
               </label>
 
-              <label>
-                <span>Product Code Map *</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Product Code Map *</span>
                 <select 
                   value={productCodeId} 
                   onChange={(e) => setProductCodeId(e.target.value === "" ? "" : Number(e.target.value))}
@@ -271,8 +290,8 @@ export default function ModelRegistryManager() {
                 </select>
               </label>
 
-              <label>
-                <span>Input Image Size (px)</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Input Image Size (px)</span>
                 <select 
                   value={imageSize} 
                   onChange={(e) => setImageSize(Number(e.target.value))}
@@ -283,8 +302,8 @@ export default function ModelRegistryManager() {
                 </select>
               </label>
 
-              <label>
-                <span>Confidence Threshold (conf_thresh)</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Confidence Threshold</span>
                 <input 
                   type="number"
                   step="0.05"
@@ -295,8 +314,8 @@ export default function ModelRegistryManager() {
                 />
               </label>
 
-              <label>
-                <span>IoU NMS Threshold (iou_thresh)</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>IoU NMS Threshold</span>
                 <input 
                   type="number"
                   step="0.05"
@@ -309,20 +328,24 @@ export default function ModelRegistryManager() {
             </div>
 
             <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-              <button type="submit">{editId ? "Update Parameters" : "Save and Load Model"}</button>
-              <button type="button" className="button-secondary" onClick={resetForm}>Cancel</button>
+              <button type="submit" style={{ borderRadius: "8px", padding: "0.5rem 1.25rem" }}>{editId ? "Update Parameters" : "Save and Load Model"}</button>
+              <button type="button" className="button-secondary" style={{ borderRadius: "8px", padding: "0.5rem 1.25rem" }} onClick={resetForm}>Cancel</button>
             </div>
           </form>
         </section>
       )}
 
-      {/* 3. Model Cards Grid */}
+      {/* 4. Model Cards Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem" }}>
         {parsedModels.map(m => (
           <section key={m.id} className="card stack" style={{
             gap: "1.25rem",
-            border: m.status === "running" ? "1px solid rgba(46, 125, 50, 0.12)" : "1px solid var(--border)",
-            background: m.status === "running" ? "linear-gradient(135deg, #FAFCF8 0%, #FFFFFF 100%)" : "#FFFFFF"
+            border: !m.is_active ? "1px solid #fca5a5" : m.status === "running" ? "1px solid rgba(46, 125, 50, 0.12)" : "1px solid var(--border)",
+            borderLeft: `4px solid ${["#E53935","#1E88E5","#43A047","#FB8C00"][m.id % 4]}`,
+            background: !m.is_active ? "#fffaf9" : m.status === "running" ? "linear-gradient(135deg, #FAFCF8 0%, #FFFFFF 100%)" : "#FFFFFF",
+            opacity: m.is_active ? 1 : 0.7,
+            transition: "opacity 0.2s, border 0.2s",
+            boxShadow: "var(--shadow-sm)"
           }}>
             <div className="row-between" style={{ alignItems: "center" }}>
               <span className={`chip ${
@@ -366,32 +389,56 @@ export default function ModelRegistryManager() {
 
             <div className="row-between" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.85rem", alignItems: "center" }}>
               <div style={{ display: "flex", gap: "0.25rem" }}>
-                <button type="button" className="small button-secondary" onClick={() => handleEdit(m)}>Edit</button>
-                <button type="button" className="small button-danger" onClick={() => void handleDelete(m.id)}>Delete</button>
+                <button type="button" className="small button-secondary" style={{ borderRadius: "6px" }} onClick={() => handleEdit(m)}>Edit</button>
+                <button type="button" className="small button-danger" style={{ borderRadius: "6px" }} onClick={() => void handleDelete(m.id)}>Delete</button>
               </div>
-              <button 
-                type="button" 
-                className={`small ${m.status === "running" ? "button-secondary" : ""}`}
-                onClick={() => toggleDeployment(m.id, m.status)}
-              >
-                {m.status === "running" ? "Stop Deploy" : "Deploy container"}
-              </button>
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                {/* Active/Inactive toggle */}
+                <button
+                  type="button"
+                  onClick={() => void handleToggleActive(m.id, m.is_active)}
+                  title={m.is_active ? "Click to deactivate" : "Click to activate"}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "0.4rem",
+                    padding: "0.25rem 0.65rem", borderRadius: "99px", border: "none",
+                    cursor: "pointer", fontSize: "0.72rem", fontWeight: 700,
+                    background: m.is_active ? "#e6f9f0" : "#fdecea",
+                    color: m.is_active ? "#15803d" : "#b91c1c",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  <span style={{
+                    width: "8px", height: "8px", borderRadius: "50%",
+                    background: m.is_active ? "#15803d" : "#b91c1c",
+                    display: "inline-block"
+                  }} />
+                  {m.is_active ? "Active" : "Inactive"}
+                </button>
+                <button
+                  type="button"
+                  className={`small ${m.status === "running" ? "button-secondary" : ""}`}
+                  style={{ borderRadius: "6px" }}
+                  onClick={() => toggleDeployment(m.id, m.status)}
+                >
+                  {m.status === "running" ? "Stop Deploy" : "Deploy container"}
+                </button>
+              </div>
             </div>
           </section>
         ))}
 
         {parsedModels.length === 0 && !loading && (
-          <div className="card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem" }}>
+          <div className="card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem", boxShadow: "var(--shadow-sm)" }}>
             <p className="subtle">No neural network models registered. Fill in the mapping editor to upload custom weights.</p>
           </div>
         )}
       </div>
 
-      {/* 4. Telemetry Plot & Deployment Logs */}
+      {/* 5. Telemetry Plot & Deployment Logs */}
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "1.5rem" }} className="detail-grid">
         
         {/* Performance scatter/line benchmark plot */}
-        <section className="card stack">
+        <section className="card stack" style={{ boxShadow: "var(--shadow-sm)", borderLeft: "4px solid #43A047" }}>
           <h2>AI Performance Benchmarks</h2>
           <p className="subtle">Latency (ms) vs Accuracy (%) distribution across loaded weights files.</p>
           
@@ -434,7 +481,7 @@ export default function ModelRegistryManager() {
         </section>
 
         {/* Timeline Log Card */}
-        <section className="card stack">
+        <section className="card stack" style={{ boxShadow: "var(--shadow-sm)", borderLeft: "4px solid #FB8C00" }}>
           <h2>Deployment History Logs</h2>
           <p className="subtle">Container execution triggers and health alerts.</p>
           

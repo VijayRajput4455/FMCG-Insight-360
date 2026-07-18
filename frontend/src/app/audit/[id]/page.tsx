@@ -81,22 +81,32 @@ export default function AuditDetailPage() {
 
   return (
     <div className="container stack" style={{ gap: "2rem" }}>
-      <header className="hero">
-        <div className="row-between">
-          <div>
-            <h1>Audit Timeline</h1>
-            <p><Link href="/history" style={{color: 'var(--accent-primary)'}}>&larr; Back to Logs</Link></p>
-          </div>
-          <button
-            type="button"
-            className="small"
-            onClick={() => void load(true)}
-            disabled={refreshing}
-          >
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
+      {/* Large Hero Header Card */}
+      <section className="card row-between" style={{
+        background: "linear-gradient(135deg, var(--accent-light) 0%, var(--bg) 100%)",
+        border: "1px solid var(--accent-glow)",
+        position: "relative",
+        overflow: "hidden",
+        padding: "2rem",
+        alignItems: "center"
+      }}>
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.08em", color: "var(--accent-primary)" }}>Audit Detail</span>
+          <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0 0", color: "var(--accent-primary)" }}>Audit Timeline</h1>
+          <p style={{ color: "var(--text-secondary)", margin: "0.5rem 0 0", fontSize: "0.9rem", lineHeight: "1.5" }}>
+            <Link href="/history" style={{ color: 'var(--accent-primary)', fontWeight: 700, textDecoration: "none" }}>&larr; Back to Logs</Link>
+          </p>
         </div>
-      </header>
+        <button
+          type="button"
+          className="button-secondary small"
+          style={{ position: "relative", zIndex: 2, borderRadius: "8px", padding: "0.5rem 1rem" }}
+          onClick={() => void load(true)}
+          disabled={refreshing}
+        >
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
+      </section>
 
       {loading ? (
         <div className="skeleton-block" style={{ height: "300px" }} />

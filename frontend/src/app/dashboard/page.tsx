@@ -20,6 +20,30 @@ export default function DashboardPage() {
   const [registeredModels, setRegisteredModels] = useState<Model[]>([]);
   const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  const hoveredDateStr = useMemo(() => {
+    if (hoveredIdx === null) return "";
+    const d = new Date();
+    d.setDate(new Date().getDate() - (6 - hoveredIdx));
+    return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  }, [hoveredIdx]);
+
+  const statusStats = useMemo(() => {
+    const total = allDbLogs.length + localItems.length;
+    if (total === 0) {
+      return { completedPct: 78, pendingPct: 12, failedPct: 10, completedCount: 0, pendingCount: 0, failedCount: 0 };
+    }
+    const completedCount = allDbLogs.filter(i => i.status === "completed").length;
+    const failedCount = allDbLogs.filter(i => i.status === "failed").length;
+    const pendingCount = total - completedCount - failedCount;
+
+    const completedPct = Math.round((completedCount / total) * 100);
+    const failedPct = Math.round((failedCount / total) * 100);
+    const pendingPct = 100 - completedPct - failedPct;
+
+    return { completedPct, pendingPct, failedPct, completedCount, pendingCount, failedCount };
+  }, [allDbLogs, localItems]);
 
   useEffect(() => {
     async function loadData() {
@@ -252,10 +276,18 @@ export default function DashboardPage() {
       counts[6 - i] = matchedCount;
     }
 
-    const maxVal = Math.max(...counts, 10);
+    const max = Math.max(...counts, 50); // Default to niceMax of at least 50
+    let niceMax = 50;
+    if (max <= 50) niceMax = 50;
+    else if (max <= 100) niceMax = 100;
+    else niceMax = Math.ceil(max / 50) * 50;
+
+    const step = niceMax / 5;
+    const yAxisLabels = Array.from({ length: 6 }, (_, i) => Math.round(niceMax - i * step));
+
     const points = counts.map((count, idx) => {
-      const x = 10 + idx * 63.3;
-      const y = 96 - (count / maxVal) * 80;
+      const x = 40 + idx * 56.6; // Width is 340, starting at x=40
+      const y = 170 - (count / niceMax) * 150; // Height is 150, starting at y=20
       return { x, y, count };
     });
 
@@ -264,10 +296,10 @@ export default function DashboardPage() {
     }, "");
 
     const fillD = points.length > 0
-      ? `${pathD} L ${points[points.length - 1].x} 100 L ${points[0].x} 100 Z`
+      ? `${pathD} L ${points[points.length - 1].x} 170 L ${points[0].x} 170 Z`
       : "";
 
-    return { points, pathD, fillD, labels, counts, maxVal };
+    return { points, pathD, fillD, labels, counts, niceMax, yAxisLabels };
   }, [allDbLogs]);
 
   // 3. Top Model Requests Received (dynamic from registered models)
@@ -359,135 +391,209 @@ export default function DashboardPage() {
   return (
     <div className="container stack" style={{ gap: "2rem" }}>
       
-      {/* Page Header Welcome bar */}
-      <div className="row-between" style={{ alignItems: "center" }}>
-        <div>
-          <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: 0, color: "var(--text-primary)" }}>Dashboard</h1>
-          <p className="subtle" style={{ margin: "0.25rem 0 0" }}>Welcome back, Admin! Here&apos;s what&apos;s happening today.</p>
+      {/* Large Hero Header Card */}
+      <section className="card row-between" style={{
+        background: "linear-gradient(135deg, var(--accent-light) 0%, var(--bg) 100%)",
+        border: "1px solid var(--accent-glow)",
+        position: "relative",
+        overflow: "hidden",
+        padding: "2rem",
+        alignItems: "center",
+        borderLeft: "4px solid var(--accent-primary)"
+      }}>
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.08em", color: "var(--accent-primary)" }}>FMCG Inventory Monitoring</span>
+          <h2 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0", color: "var(--accent-primary)" }}>Dashboard</h2>
+          <div className="main-header-line" />
+          <p style={{ color: "var(--text-secondary)", margin: "0.5rem 0 0", fontSize: "0.9rem", lineHeight: "1.5" }}>
+            Welcome back, Admin! Here&apos;s what&apos;s happening today.
+          </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", background: "#FFFFFF", padding: "0.5rem 1rem", borderRadius: "99px", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
+        
+        {/* Date Display */}
+        <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", background: "#FFFFFF", padding: "0.5rem 1rem", borderRadius: "99px", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           <span>{new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })}</span>
         </div>
-      </div>
+      </section>
 
       {/* KPI Cards Grid */}
       <section className="kpi-grid">
-        {/* Card 1: Total Audits */}
-        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--danger)" }}>
-          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", flexShrink: 0 }}>
+        {/* Card 1: Total Audits (Red) */}
+        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid #E53935", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF3F3 40%, #FFCDD2 70%, #EF5350 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#1565C0", flexShrink: 0, boxShadow: "var(--shadow-sm)" }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
           </div>
           <div className="stack" style={{ gap: "0.25rem" }}>
-            <span className="kpi-label">Total Audits</span>
-            <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block" }}>{kpis.total}</strong>
-            <span style={{ fontSize: "0.78rem", color: deltas.totalIsPositive ? "var(--success)" : "var(--danger)", fontWeight: 700 }}>
-              {kpis.total > 0 ? `${deltas.totalIsPositive ? "↑" : "↓"} ${deltas.totalDelta} vs last week` : "No audits recorded"}
+            <span className="kpi-label" style={{ color: "#C62828", fontWeight: 700 }}>Total Audits</span>
+            <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block", color: "#1B1B1B" }}>{kpis.total}</strong>
+            <span style={{ fontSize: "0.78rem", color: "#1565C0", fontWeight: 700 }}>
+              {kpis.total > 0 ? `↑ +${deltas.totalDelta} runs vs last week` : "No audits recorded"}
             </span>
           </div>
         </div>
 
-        {/* Card 2: Average Accuracy */}
-        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--info)" }}>
-          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", flexShrink: 0 }}>
+        {/* Card 2: Average Accuracy (Blue) */}
+        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid #1E88E5", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F8FF 40%, #B3E5FC 70%, #42A5F5 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#1565C0", flexShrink: 0, boxShadow: "var(--shadow-sm)" }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
           </div>
           <div className="stack" style={{ gap: "0.25rem" }}>
-            <span className="kpi-label">Average Accuracy</span>
-            <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block" }}>
+            <span className="kpi-label" style={{ color: "#0D47A1", fontWeight: 700 }}>Average Accuracy</span>
+            <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block", color: "#1B1B1B" }}>
               {loading ? "—" : `${kpis.accuracy}%`}
             </strong>
-            <span style={{ fontSize: "0.78rem", color: deltas.accIsPositive ? "var(--success)" : "var(--danger)", fontWeight: 700 }}>
-              {loading ? "Loading..." : `${deltas.accIsPositive ? "↑" : "↓"} ${deltas.accDelta} vs last week`}
+            <span style={{ fontSize: "0.78rem", color: "#1565C0", fontWeight: 700 }}>
+              {loading ? "Loading..." : `↑ ${deltas.accDelta}% vs last week`}
             </span>
           </div>
         </div>
 
-        {/* Card 3: Pass Rate */}
-        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--success)" }}>
-          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", flexShrink: 0 }}>
+        {/* Card 3: Pass Rate (Green) */}
+        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid #43A047", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F9F1 40%, #C8E6C9 70%, #66BB6A 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#1565C0", flexShrink: 0, boxShadow: "var(--shadow-sm)" }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><polyline points="8 12 11 15 16 10"/></svg>
           </div>
           <div className="stack" style={{ gap: "0.25rem" }}>
-            <span className="kpi-label">Pass Rate</span>
-            <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block" }}>
+            <span className="kpi-label" style={{ color: "#1B5E20", fontWeight: 700 }}>Pass Rate</span>
+            <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block", color: "#1B1B1B" }}>
               {loading ? "—" : `${kpis.passRate}%`}
             </strong>
-            <span style={{ fontSize: "0.78rem", color: deltas.passIsPositive ? "var(--success)" : "var(--danger)", fontWeight: 700 }}>
-              {loading ? "Loading..." : `${deltas.passIsPositive ? "↑" : "↓"} ${deltas.passDelta} vs last week`}
+            <span style={{ fontSize: "0.78rem", color: "#1565C0", fontWeight: 700 }}>
+              {loading ? "Loading..." : `↑ ${deltas.passDelta}% vs last week`}
             </span>
           </div>
         </div>
 
-        {/* Card 4: Issues Found */}
-        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid var(--warning)" }}>
-          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF3E0", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--warning)", flexShrink: 0 }}>
+        {/* Card 4: Issues Found (Orange) */}
+        <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid #FB8C00", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF8F1 40%, #FFE0B2 70%, #FFA726 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#1565C0", flexShrink: 0, boxShadow: "var(--shadow-sm)" }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
           <div className="stack" style={{ gap: "0.25rem" }}>
-            <span className="kpi-label">Issues Found</span>
-            <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block" }}>{kpis.issues}</strong>
-            <span style={{ fontSize: "0.78rem", color: deltas.failIsPositive ? "var(--success)" : "var(--danger)", fontWeight: 700 }}>
-              {deltas.failIsPositive ? "↓" : "↑"} {deltas.failDelta} vs last week
+            <span className="kpi-label" style={{ color: "#E65100", fontWeight: 700 }}>Issues Found</span>
+            <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block", color: "#1B1B1B" }}>{kpis.issues}</strong>
+            <span style={{ fontSize: "0.78rem", color: "#D84315", fontWeight: 700 }}>
+              ↑ {deltas.failDelta} runs vs last week
             </span>
           </div>
         </div>
       </section>
 
-      {/* Middle Grid Row: 3 Columns matching user layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.9fr 0.8fr 0.8fr", gap: "1.5rem" }} className="detail-grid">
+      {/* Row 1: Key Audits Over Time and Audits Status */}
+      <div style={{ display: "grid", gridTemplateColumns: "2.3fr 1.7fr", gap: "1.5rem" }} className="detail-grid">
         
         {/* Chart 1: Audits Over Time */}
-        <section className="card stack">
-          <div className="row-between" style={{ alignItems: "center", marginBottom: "1rem" }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700 }}>Audits Over Time</h2>
-            <select style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
+        <section className="card stack" style={{ borderLeft: "4px solid #E53935" }}>
+          <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "1rem" }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Audits Over Time</h2>
+            <select style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "6px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer" }}>
               <option>This Week</option>
               <option>This Month</option>
             </select>
           </div>
 
-          <div style={{ position: "relative", width: "100%", height: "145px" }}>
-            <svg viewBox="0 0 400 120" style={{ width: "98%", height: "122%" }}>
-              <line x1="10" y1="16" x2="390" y2="16" stroke="var(--border)" strokeWidth="0.8" strokeDasharray="3" opacity="0.3" />
-              <line x1="10" y1="56" x2="390" y2="56" stroke="var(--border)" strokeWidth="0.8" strokeDasharray="3" opacity="0.3" />
-              <line x1="10" y1="96" x2="390" y2="96" stroke="var(--border)" strokeWidth="0.8" />
+          <div style={{ position: "relative", width: "100%", height: "230px" }}>
+            <svg viewBox="0 -35 400 240" style={{ width: "98%", height: "100%" }}>
+              {/* Horizontal Grid Lines & Y Axis Labels */}
+              {trendChartData.yAxisLabels.map((val, idx) => {
+                const y = 20 + idx * 30; // Spaced between 20 and 170
+                return (
+                  <g key={idx}>
+                    {/* Grid line */}
+                    <line x1="35" y1={y} x2="385" y2={y} stroke="var(--border)" strokeWidth="0.8" opacity="0.3" />
+                    {/* Y Axis Label */}
+                    <text x="25" y={y + 3} textAnchor="end" fill="var(--text-secondary)" fontSize="8" fontWeight="600">
+                      {val}
+                    </text>
+                  </g>
+                );
+              })}
 
               {/* Chart Gradient Area */}
               {trendChartData.fillD && (
-                <path d={trendChartData.fillD.replace(/100/g, "96")} fill="url(#chart-grad-dashboard-v5)" opacity="0.08" />
+                <path d={trendChartData.fillD} fill="url(#chart-grad-dashboard-v6)" opacity="0.08" />
               )}
 
               {/* Sparkline Curve */}
               {trendChartData.pathD && (
-                <path d={trendChartData.pathD} fill="none" stroke="var(--accent-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                <path d={trendChartData.pathD} fill="none" stroke="#2E7D32" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               )}
 
               {/* Nodes */}
               {trendChartData.points.map((pt, idx) => (
                 <g key={idx}>
-                  <circle cx={pt.x} cy={pt.y} r="4" fill="var(--bg)" stroke="var(--accent-primary)" strokeWidth="2" />
-                  {pt.count > 0 && (
-                    <g>
-                      <rect x={pt.x - 30} y={pt.y - 28} width="60" height="20" rx="4" fill="#FFFFFF" stroke="var(--border)" strokeWidth="1" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
-                      <text x={pt.x} y={pt.y - 15} textAnchor="middle" fill="var(--text-primary)" fontSize="8" fontWeight="700">
-                        {pt.count} Audits
-                      </text>
-                    </g>
-                  )}
+                  <circle
+                    cx={pt.x}
+                    cy={pt.y}
+                    r="4"
+                    fill="#ffffff"
+                    stroke="#2E7D32"
+                    strokeWidth="2.5"
+                    style={{ cursor: "pointer" }}
+                    onMouseOver={() => setHoveredIdx(idx)}
+                    onMouseOut={() => setHoveredIdx(null)}
+                  />
                 </g>
               ))}
 
+              {/* Tooltip Overlay */}
+              {hoveredIdx !== null && trendChartData.points[hoveredIdx] && (
+                <g>
+                  {/* Tooltip Box */}
+                  <rect
+                    x={trendChartData.points[hoveredIdx].x - 45}
+                    y={trendChartData.points[hoveredIdx].y - 45}
+                    width="90"
+                    height="35"
+                    rx="6"
+                    fill="#FFFFFF"
+                    stroke="var(--border)"
+                    strokeWidth="1"
+                    filter="drop-shadow(0 4px 6px rgba(0,0,0,0.08))"
+                  />
+                  {/* Date text */}
+                  <text
+                    x={trendChartData.points[hoveredIdx].x}
+                    y={trendChartData.points[hoveredIdx].y - 34}
+                    textAnchor="middle"
+                    fill="var(--text-secondary)"
+                    fontSize="7"
+                    fontWeight="600"
+                  >
+                    {hoveredDateStr}
+                  </text>
+                  {/* Value Indicator Dot */}
+                  <circle
+                    cx={trendChartData.points[hoveredIdx].x - 24}
+                    y={trendChartData.points[hoveredIdx].y - 20}
+                    r="2.5"
+                    fill="#2E7D32"
+                  />
+                  {/* Value Text */}
+                  <text
+                    x={trendChartData.points[hoveredIdx].x + 4}
+                    y={trendChartData.points[hoveredIdx].y - 17}
+                    textAnchor="middle"
+                    fill="var(--text-primary)"
+                    fontSize="8"
+                    fontWeight="700"
+                  >
+                    {trendChartData.points[hoveredIdx].count} Audits
+                  </text>
+                </g>
+              )}
+
               {/* X Labels */}
               {trendChartData.labels.map((lbl, idx) => (
-                <text key={idx} x={10 + idx * 63.3} y="114" textAnchor="middle" fill="var(--text-secondary)" fontSize="9" fontWeight="600">
+                <text key={idx} x={40 + idx * 56.6} y="195" textAnchor="middle" fill="var(--text-secondary)" fontSize="9" fontWeight="600">
                   {lbl}
                 </text>
               ))}
 
               <defs>
-                <linearGradient id="chart-grad-dashboard-v5" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--accent-primary)" />
+                <linearGradient id="chart-grad-dashboard-v6" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2E7D32" />
                   <stop offset="100%" stopColor="transparent" />
                 </linearGradient>
               </defs>
@@ -495,10 +601,89 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        {/* Chart 1.5: Audits by Status */}
+        <section className="card stack" style={{ borderLeft: "4px solid #1E88E5" }}>
+          <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "1rem" }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Audits by Status</h2>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-around", height: "230px" }}>
+            {/* Donut Chart */}
+            <div style={{ transform: "rotate(-90deg)", width: "140px", height: "140px" }}>
+              <svg viewBox="0 0 80 80" style={{ width: "100%", height: "100%" }}>
+                {/* Background circle */}
+                <circle cx="40" cy="40" r="30" fill="transparent" stroke="var(--bg)" strokeWidth="8" />
+                
+                {/* Completed Segment */}
+                {statusStats.completedPct > 0 && (
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="30"
+                    fill="transparent"
+                    stroke="#2E7D32"
+                    strokeWidth="8"
+                    strokeDasharray={`${(statusStats.completedPct / 100) * 188.5} 188.5`}
+                    strokeDashoffset="0"
+                  />
+                )}
+                
+                {/* Pending Segment */}
+                {statusStats.pendingPct > 0 && (
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="30"
+                    fill="transparent"
+                    stroke="#FFA726"
+                    strokeWidth="8"
+                    strokeDasharray={`${(statusStats.pendingPct / 100) * 188.5} 188.5`}
+                    strokeDashoffset={`-${(statusStats.completedPct / 100) * 188.5}`}
+                  />
+                )}
+                
+                {/* Failed Segment */}
+                {statusStats.failedPct > 0 && (
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="30"
+                    fill="transparent"
+                    stroke="#D32F2F"
+                    strokeWidth="8"
+                    strokeDasharray={`${(statusStats.failedPct / 100) * 188.5} 188.5`}
+                    strokeDashoffset={`-${((statusStats.completedPct + statusStats.pendingPct) / 100) * 188.5}`}
+                  />
+                )}
+              </svg>
+            </div>
+
+            {/* Legend */}
+            <div className="stack" style={{ gap: "0.75rem", fontSize: "0.85rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#2E7D32" }} />
+                <span>Completed ({statusStats.completedPct}%)</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#FFA726" }} />
+                <span>In Progress ({statusStats.pendingPct}%)</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#D32F2F" }} />
+                <span>Failed ({statusStats.failedPct}%)</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      {/* Row 2: Secondary Performance indicators and Health Console */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.4fr", gap: "1.5rem" }} className="detail-grid">
+        
         {/* Chart 2: Top Model Requests Received */}
-        <section className="card stack">
-          <div className="row-between" style={{ alignItems: "center", marginBottom: "1rem" }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700 }}>Top Model Requests</h2>
+        <section className="card stack" style={{ borderLeft: "4px solid #43A047" }}>
+          <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "1rem" }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Top Model Requests</h2>
             <select style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
               <option>This Week</option>
               <option>This Month</option>
@@ -531,9 +716,9 @@ export default function DashboardPage() {
         </section>
 
         {/* Chart 3: Top Category API Hits */}
-        <section className="card stack">
-          <div className="row-between" style={{ alignItems: "center", marginBottom: "1rem" }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700 }}>Top Category Hits</h2>
+        <section className="card stack" style={{ borderLeft: "4px solid #FB8C00" }}>
+          <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "1rem" }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Top Category Hits</h2>
             <select style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
               <option>This Week</option>
               <option>This Month</option>
@@ -555,15 +740,57 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        {/* Footer 2: System Health */}
+        <section className="card stack" style={{ borderLeft: "4px solid #E53935" }}>
+          <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "0.75rem" }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>System Health</h2>
+            <span style={{ fontSize: "0.72rem", color: "var(--success)", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.25rem" }}>
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--success)", display: "inline-block" }} />
+              All Operational
+            </span>
+          </div>
+
+          <div className="stack" style={{ gap: "0.65rem", fontSize: "0.82rem" }}>
+            <div className="row-between" style={{ padding: "0.2rem 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/></svg>
+                <span>API Service</span>
+              </div>
+              <span style={{ color: "var(--success)", fontWeight: 700 }}>Operational</span>
+            </div>
+            <div className="row-between" style={{ padding: "0.2rem 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>Worker Service</span>
+              </div>
+              <span style={{ color: "var(--success)", fontWeight: 700 }}>Operational</span>
+            </div>
+            <div className="row-between" style={{ padding: "0.2rem 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <span>RabbitMQ</span>
+              </div>
+              <span style={{ color: "var(--success)", fontWeight: 700 }}>Operational</span>
+            </div>
+            <div className="row-between" style={{ padding: "0.2rem 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                <span>Redis</span>
+              </div>
+              <span style={{ color: "var(--success)", fontWeight: 700 }}>Operational</span>
+            </div>
+          </div>
+        </section>
+
       </div>
 
-      {/* Bottom Grid Row: 3 Columns matching user layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.9fr 0.8fr 0.8fr", gap: "1.5rem" }} className="detail-grid">
+      {/* Row 3: Action Logs and Operations Panel */}
+      <div style={{ display: "grid", gridTemplateColumns: "2.6fr 1.4fr", gap: "1.5rem" }} className="detail-grid">
         
         {/* Footer 1: Recent Audit Activity */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #1E88E5" }}>
           <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "0.75rem" }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700 }}>Recent Audit Activity</h2>
+            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Recent Audit Activity</h2>
             <Link href="/history" className="small-link" style={{ color: "var(--accent-primary)", fontWeight: 700 }}>
               View All
             </Link>
@@ -605,64 +832,9 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Footer 2: System Health */}
-        <section className="card stack">
-          <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "0.75rem" }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700 }}>System Health</h2>
-            <span style={{ fontSize: "0.72rem", color: "var(--success)", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.25rem" }}>
-              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--success)", display: "inline-block" }} />
-              All Systems Operational
-            </span>
-          </div>
-
-          <div className="stack" style={{ gap: "0.65rem", fontSize: "0.82rem" }}>
-            <div className="row-between" style={{ padding: "0.2rem 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/></svg>
-                <span>API Service</span>
-              </div>
-              <span style={{ color: "var(--success)", fontWeight: 700 }}>Operational</span>
-            </div>
-            <div className="row-between" style={{ padding: "0.2rem 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>Worker Service</span>
-              </div>
-              <span style={{ color: "var(--success)", fontWeight: 700 }}>Operational</span>
-            </div>
-            <div className="row-between" style={{ padding: "0.2rem 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                <span>RabbitMQ</span>
-              </div>
-              <span style={{ color: "var(--success)", fontWeight: 700 }}>Operational</span>
-            </div>
-            <div className="row-between" style={{ padding: "0.2rem 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                <span>Redis</span>
-              </div>
-              <span style={{ color: "var(--success)", fontWeight: 700 }}>Operational</span>
-            </div>
-            <div className="row-between" style={{ padding: "0.2rem 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>
-                <span>PostgreSQL</span>
-              </div>
-              <span style={{ color: "var(--success)", fontWeight: 700 }}>Operational</span>
-            </div>
-
-            <Link href="/settings" style={{ textDecoration: "none", width: "100%", marginTop: "0.5rem" }}>
-              <button type="button" className="button-secondary" style={{ width: "100%", padding: "0.5rem", borderRadius: "10px", fontSize: "0.78rem" }}>
-                View System Logs
-              </button>
-            </Link>
-          </div>
-        </section>
-
         {/* Footer 3: Quick Actions */}
-        <section className="card stack" style={{ gap: "1rem" }}>
-          <h2 style={{ fontSize: "1rem", fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>Quick Actions</h2>
+        <section className="card stack" style={{ gap: "1rem", borderLeft: "4px solid #43A047" }}>
+          <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0, borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "0.75rem" }}>Quick Actions</h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
             <Link href="/new-audit">
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem", padding: "0.65rem 0.25rem", border: "1px solid var(--border)", borderRadius: "12px", background: "var(--bg)", cursor: "pointer" }}>

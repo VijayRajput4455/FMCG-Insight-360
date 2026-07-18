@@ -48,45 +48,56 @@ export default function AnalyticsPage() {
   return (
     <div className="container stack" style={{ gap: "2rem" }}>
       
-      {/* 1. Page Header */}
-      <header className="hero row-between" style={{ alignItems: "center" }}>
-        <div>
-          <span className="kpi-label" style={{ color: "var(--accent-primary)" }}>Intelligence Reports</span>
-          <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0 0" }}>Business Intelligence Console</h1>
-          <p className="subtle">Analyze retail revenue indicators, scanning volumes, and model compliance charts.</p>
+      {/* Page Header */}
+      <section className="card row-between" style={{
+        background: "linear-gradient(135deg, var(--accent-light) 0%, var(--bg) 100%)",
+        border: "1px solid var(--accent-glow)",
+        position: "relative",
+        overflow: "hidden",
+        padding: "2rem",
+        alignItems: "center",
+        borderLeft: "4px solid var(--accent-primary)"
+      }}>
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.08em", color: "var(--accent-primary)" }}>Intelligence Reports</span>
+          <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0 0", color: "var(--accent-primary)" }}>Business Intelligence Console</h1>
+          <div className="main-header-line" />
+          <p style={{ color: "var(--text-secondary)", margin: "0.5rem 0 0", fontSize: "0.9rem", lineHeight: "1.5" }}>
+            Analyze retail revenue indicators, scanning volumes, and model compliance charts.
+          </p>
         </div>
         <select 
           value={timeRange} 
           onChange={(e) => setTimeRange(e.target.value)}
-          style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", borderRadius: "99px", boxShadow: "var(--shadow-sm)" }}
+          style={{ position: "relative", zIndex: 2, padding: "0.5rem 1rem", fontSize: "0.85rem", borderRadius: "99px", border: "1px solid var(--border)", background: "#FFFFFF", boxShadow: "var(--shadow-sm)", cursor: "pointer" }}
         >
           <option value="week">This Week</option>
           <option value="month">This Month</option>
           <option value="year">This Year</option>
         </select>
-      </header>
+      </section>
 
       {/* 2. Four KPI Cards */}
       <section className="kpi-grid">
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
-          <span className="kpi-label">Audited Revenue Save</span>
-          <strong className="kpi-value">$24,820</strong>
-          <span className="kpi-sub" style={{ color: "var(--success)", fontWeight: 700 }}>↑ +14.2% cost protection</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #E53935", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF3F3 40%, #FFCDD2 70%, #EF5350 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#C62828", fontWeight: 700 }}>Audited Revenue Save</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>$24,820</strong>
+          <span className="kpi-sub" style={{ color: "#1565C0", fontWeight: 700 }}>↑ +14.2% cost protection</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--info)" }}>
-          <span className="kpi-label">Total Completed Audits</span>
-          <strong className="kpi-value">1,248</strong>
-          <span className="kpi-sub" style={{ color: "var(--accent-primary)", fontWeight: 700 }}>↑ +180 runs this week</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #1E88E5", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F8FF 40%, #B3E5FC 70%, #42A5F5 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#0D47A1", fontWeight: 700 }}>Total Completed Audits</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>1,248</strong>
+          <span className="kpi-sub" style={{ color: "#1565C0", fontWeight: 700 }}>↑ +180 runs this week</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--success)" }}>
-          <span className="kpi-label">AI Accuracy Score</span>
-          <strong className="kpi-value">99.62%</strong>
-          <span className="kpi-sub" style={{ color: "var(--success)", fontWeight: 700 }}>↑ +0.3% YOLO model update</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #43A047", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F9F1 40%, #C8E6C9 70%, #66BB6A 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#1B5E20", fontWeight: 700 }}>AI Accuracy Score</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>99.62%</strong>
+          <span className="kpi-sub" style={{ color: "#1565C0", fontWeight: 700 }}>↑ +0.3% YOLO model update</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--warning)" }}>
-          <span className="kpi-label">Detections Issues</span>
-          <strong className="kpi-value">14</strong>
-          <span className="kpi-sub" style={{ color: "var(--danger)", fontWeight: 700 }}>↓ -2.5% scan blur drops</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #FB8C00", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF8F1 40%, #FFE0B2 70%, #FFA726 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#E65100", fontWeight: 700 }}>Detections Issues</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>14</strong>
+          <span className="kpi-sub" style={{ color: "#D84315", fontWeight: 700 }}>↓ -2.5% scan blur drops</span>
         </div>
       </section>
 
@@ -94,7 +105,7 @@ export default function AnalyticsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: "1.5rem" }} className="detail-grid">
         
         {/* Trend Area Chart */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #E53935" }}>
           <h2>Audits & Coverage Frequency</h2>
           <p className="subtle">Completed shelf classification queries plotted against calendar milestones.</p>
           
@@ -142,7 +153,7 @@ export default function AnalyticsPage() {
         </section>
 
         {/* Categories allocation Pie Chart */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #1E88E5" }}>
           <h2>Top Categories Share</h2>
           <p className="subtle">Audit loads divided across major inventory segments.</p>
           
@@ -189,7 +200,7 @@ export default function AnalyticsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: "1.5rem" }} className="detail-grid">
         
         {/* Heat Map grid */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #43A047" }}>
           <h2>Store Coverage Density Map</h2>
           <p className="subtle">Weekly audit frequency distributions tracked across retail branches.</p>
           
@@ -239,7 +250,7 @@ export default function AnalyticsPage() {
         </section>
 
         {/* Top Errors & Alerts */}
-        <section className="card stack" style={{ gap: "1rem" }}>
+        <section className="card stack" style={{ gap: "1rem", borderLeft: "4px solid #FB8C00" }}>
           <h2>Top Detection Flag Warnings</h2>
           <p className="subtle">Common bounding box error flags mapped by AI engines.</p>
           
@@ -269,7 +280,7 @@ export default function AnalyticsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }} className="detail-grid">
         
         {/* Compliance Rankings */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #E53935" }}>
           <h2>Store Compliance Rankings</h2>
           <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
             <table>
@@ -302,7 +313,7 @@ export default function AnalyticsPage() {
         </section>
 
         {/* Product classification metrics */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #1E88E5" }}>
           <h2>Product Classification Performance</h2>
           <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
             <table>

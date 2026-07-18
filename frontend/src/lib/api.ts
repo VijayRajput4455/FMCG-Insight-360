@@ -258,6 +258,7 @@ export type Model = {
   image_size?: number;
   conf_threshold?: number;
   iou_threshold?: number;
+  is_active: boolean;
   created_at: string;
 };
 
@@ -464,3 +465,14 @@ export async function deleteModel(id: number): Promise<void> {
   }
 }
 
+export async function toggleModelActive(id: number): Promise<Model> {
+  const response = await fetch(buildUrl(`/api/v1/models/${id}/toggle-active`), {
+    method: "PATCH",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(await extractError(response, `Failed to toggle model active status (${response.status})`));
+  }
+  return response.json();
+}

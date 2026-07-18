@@ -256,59 +256,117 @@ export default function ProductCatalogManager() {
         </div>
       )}
 
-      {/* 1. Header Toolbar */}
-      <div className="row-between" style={{ alignItems: "center" }}>
-        <div>
-          <span className="kpi-label" style={{ color: "var(--accent-primary)" }}>FMCG Database</span>
-          <h2 style={{ fontSize: "1.6rem", fontWeight: 800, margin: "0.25rem 0" }}>Product SKU Catalog</h2>
-          <p className="subtle">Manage retail inventory, product pricing indexes, and AI model parameters.</p>
-        </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button type="button" className="button-secondary" style={{ boxShadow: "var(--shadow-sm)" }} onClick={handleExport} disabled={filteredItems.length === 0}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: "0.25rem" }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Export CSV
-          </button>
-          <button type="button" onClick={() => setShowForm(!showForm)}>
-            {showForm ? "Cancel Adding" : "+ Add Catalog SKU"}
-          </button>
-        </div>
-      </div>
-
-      {/* 1.5. Four KPI Statistics Cards */}
+      {/* 1. Four KPI Statistics Cards */}
       <section className="kpi-grid">
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
-          <span className="kpi-label">Total Products</span>
-          <strong className="kpi-value">{products.length}</strong>
-          <span className="kpi-sub">Total database SKU records</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #E53935", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF3F3 40%, #FFCDD2 70%, #EF5350 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#C62828", fontWeight: 700 }}>Total Products</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{products.length}</strong>
+          <span className="kpi-sub" style={{ color: "#B71C1C", fontWeight: 500 }}>Total database SKU records</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--info)" }}>
-          <span className="kpi-label">Total Brands</span>
-          <strong className="kpi-value">{uniqueBrands.length}</strong>
-          <span className="kpi-sub">Unique manufactured labels</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #1E88E5", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F8FF 40%, #B3E5FC 70%, #42A5F5 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#0D47A1", fontWeight: 700 }}>Total Brands</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{uniqueBrands.length}</strong>
+          <span className="kpi-sub" style={{ color: "#0D47A1", fontWeight: 500 }}>Unique manufactured labels</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--success)" }}>
-          <span className="kpi-label">Categories</span>
-          <strong className="kpi-value">{uniqueCategoriesCount}</strong>
-          <span className="kpi-sub">Distinct department divisions</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #43A047", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F9F1 40%, #C8E6C9 70%, #66BB6A 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#1B5E20", fontWeight: 700 }}>Categories</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{uniqueCategoriesCount}</strong>
+          <span className="kpi-sub" style={{ color: "#1B5E20", fontWeight: 500 }}>Distinct department divisions</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--warning)" }}>
-          <span className="kpi-label">AI Code Count</span>
-          <strong className="kpi-value">{aiCodeCount}</strong>
-          <span className="kpi-sub">Neural identifier classifications</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #FB8C00", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF8F1 40%, #FFE0B2 70%, #FFA726 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#E65100", fontWeight: 700 }}>AI Code Count</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{aiCodeCount}</strong>
+          <span className="kpi-sub" style={{ color: "#D84315", fontWeight: 500 }}>Neural identifier classifications</span>
         </div>
       </section>
 
-      {/* 2. Inline Add / Edit Form Panel */}
+      {/* 2. Cohesive Filters & Actions Toolbar Card */}
+      <section className="card stack" style={{ padding: "1.25rem", boxShadow: "var(--shadow-sm)", borderLeft: "4px solid #43A047" }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "1rem"
+        }}>
+          {/* Filters Group */}
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.75rem", flex: 1, minWidth: "280px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--input-bg)", border: "1px solid var(--border)", borderRadius: "99px", padding: "0.45rem 0.85rem", width: "220px" }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input 
+                placeholder="Search catalog SKU..." 
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                style={{ border: "none", outline: "none", background: "transparent", width: "100%", padding: 0 }}
+              />
+            </div>
+
+            <select 
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              style={{ borderRadius: "99px", padding: "0.5rem 0.85rem", fontSize: "0.82rem", border: "1px solid var(--border)" }}
+            >
+              <option value="all">All Categories</option>
+              <option value="Beverages">Beverages</option>
+              <option value="Snacks">Snacks</option>
+              <option value="Dairy">Dairy</option>
+              <option value="Personal Care">Personal Care</option>
+              <option value="Home Care">Home Care</option>
+              <option value="Packaged Food">Packaged Food</option>
+              <option value="Confectionery">Confectionery</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <select 
+              value={filterBrand}
+              onChange={(e) => setFilterBrand(e.target.value)}
+              style={{ borderRadius: "99px", padding: "0.5rem 0.85rem", fontSize: "0.82rem", border: "1px solid var(--border)" }}
+            >
+              <option value="all">All Brands</option>
+              {uniqueBrands.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+
+            <select 
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              style={{ borderRadius: "99px", padding: "0.5rem 0.85rem", fontSize: "0.82rem", border: "1px solid var(--border)" }}
+            >
+              <option value="all">All Stock Status</option>
+              <option value="in-stock">In Stock</option>
+              <option value="low-stock">Low Stock</option>
+              <option value="out-of-stock">Out of Stock</option>
+            </select>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button type="button" className="button-secondary" style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", borderRadius: "99px", boxShadow: "var(--shadow-sm)" }} onClick={handleExport} disabled={filteredItems.length === 0}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: "0.25rem" }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+            <button type="button" style={{ padding: "0.5rem 1.25rem", fontSize: "0.85rem", borderRadius: "99px" }} onClick={() => setShowForm(!showForm)}>
+              {showForm ? "Cancel SKU Form" : "+ Add Catalog SKU"}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Inline Add / Edit Form Panel */}
       {showForm && (
         <section className="card stack" style={{
           background: "linear-gradient(135deg, #FAFCF8 0%, #FFFFFF 100%)",
-          border: "1px solid rgba(46, 125, 50, 0.12)"
+          border: "1px solid rgba(46, 125, 50, 0.12)",
+          padding: "1.75rem",
+          boxShadow: "var(--shadow-sm)",
+          borderLeft: "4px solid #1E88E5"
         }}>
-          <h3>{editId ? "Update Product Record" : "Add SKU Product to Catalog"}</h3>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>{editId ? "Update Product Record" : "Add SKU Product to Catalog"}</h3>
           <form onSubmit={handleSubmit} className="stack" style={{ marginTop: "1.25rem", gap: "1.25rem" }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.25rem" }}>
-              <label>
-                <span>Product Name *</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Product Name *</span>
                 <input 
                   value={productName} 
                   onChange={(e) => setProductName(e.target.value)} 
@@ -317,8 +375,8 @@ export default function ProductCatalogManager() {
                 />
               </label>
 
-              <label>
-                <span>SKU Code Mapping *</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>SKU Code Mapping *</span>
                 <select 
                   value={productCodeId} 
                   onChange={(e) => setProductCodeId(e.target.value === "" ? "" : Number(e.target.value))}
@@ -331,8 +389,8 @@ export default function ProductCatalogManager() {
                 </select>
               </label>
 
-              <label>
-                <span>Brand</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Brand</span>
                 <input 
                   value={brand} 
                   onChange={(e) => setBrand(e.target.value)} 
@@ -340,8 +398,8 @@ export default function ProductCatalogManager() {
                 />
               </label>
 
-              <label>
-                <span>Category</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Category</span>
                 <select value={category} onChange={(e) => setCategory(e.target.value)}>
                   <option value="Beverages">Beverages</option>
                   <option value="Snacks">Snacks</option>
@@ -354,8 +412,8 @@ export default function ProductCatalogManager() {
                 </select>
               </label>
 
-              <label>
-                <span>AI Identifier (ai_code)</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>AI Identifier (ai_code)</span>
                 <input 
                   value={aiCode} 
                   onChange={(e) => setAiCode(e.target.value)} 
@@ -363,8 +421,8 @@ export default function ProductCatalogManager() {
                 />
               </label>
 
-              <label>
-                <span>Auditing SKU Type</span>
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Auditing SKU Type</span>
                 <select value={type} onChange={(e) => setType(e.target.value)}>
                   <option value="self">Self (Own SKU)</option>
                   <option value="competitor">Competitor SKU</option>
@@ -373,76 +431,19 @@ export default function ProductCatalogManager() {
             </div>
 
             <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-              <button type="submit">{editId ? "Save Changes" : "Create Product"}</button>
-              <button type="button" className="button-secondary" onClick={resetForm}>Cancel</button>
+              <button type="submit" style={{ borderRadius: "8px", padding: "0.5rem 1.25rem" }}>{editId ? "Save Changes" : "Create Product"}</button>
+              <button type="button" className="button-secondary" style={{ borderRadius: "8px", padding: "0.5rem 1.25rem" }} onClick={resetForm}>Cancel</button>
             </div>
           </form>
         </section>
       )}
 
-      {/* 3. Catalog Filters and Table Wrapper */}
-      <section className="card stack">
-        {/* Modern Filter Toolbar */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1.2fr 1fr 1fr 1fr",
-          gap: "0.75rem",
-          alignItems: "center",
-          borderBottom: "1px solid var(--border)",
-          paddingBottom: "1.25rem"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--input-bg)", border: "1px solid var(--border)", borderRadius: "99px", padding: "0.45rem 0.85rem" }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input 
-              placeholder="Search by name, code..." 
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              style={{ border: "none", outline: "none", background: "transparent", width: "100%", padding: 0 }}
-            />
-          </div>
-
-          <select 
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            style={{ borderRadius: "99px", padding: "0.5rem 0.85rem" }}
-          >
-            <option value="all">All Categories</option>
-            <option value="Beverages">Beverages</option>
-            <option value="Snacks">Snacks</option>
-            <option value="Dairy">Dairy</option>
-            <option value="Personal Care">Personal Care</option>
-            <option value="Home Care">Home Care</option>
-            <option value="Packaged Food">Packaged Food</option>
-            <option value="Confectionery">Confectionery</option>
-            <option value="Other">Other</option>
-          </select>
-
-          <select 
-            value={filterBrand}
-            onChange={(e) => setFilterBrand(e.target.value)}
-            style={{ borderRadius: "99px", padding: "0.5rem 0.85rem" }}
-          >
-            <option value="all">All Brands</option>
-            {uniqueBrands.map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
-
-          <select 
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{ borderRadius: "99px", padding: "0.5rem 0.85rem" }}
-          >
-            <option value="all">All Stock Status</option>
-            <option value="in-stock">In Stock</option>
-            <option value="low-stock">Low Stock</option>
-            <option value="out-of-stock">Out of Stock</option>
-          </select>
-        </div>
-
-        {/* Data Table Rendering */}
+      {/* 4. Catalog Table Card */}
+      <section className="card stack" style={{ padding: 0, overflow: "hidden", boxShadow: "var(--shadow-sm)", borderLeft: "4px solid #FB8C00" }}>
         {loading ? (
-          <SkeletonBlock height={300} />
+          <div style={{ padding: "2rem" }}>
+            <SkeletonBlock height={300} />
+          </div>
         ) : filteredItems.length === 0 ? (
           /* Empty State Illustration */
           <div className="empty-state" style={{ padding: "4rem 2rem", textAlign: "center" }}>
@@ -456,16 +457,16 @@ export default function ProductCatalogManager() {
           </div>
         ) : (
           <div className="table-wrap">
-            <table>
+            <table style={{ margin: 0, border: "none" }}>
               <thead>
                 <tr>
-                  <th>Product</th>
+                  <th style={{ paddingLeft: "1.5rem" }}>Product</th>
                   <th>Category</th>
                   <th>SKU Map</th>
                   <th>Price</th>
                   <th>Stock Level</th>
                   <th>Last Updated</th>
-                  <th style={{ textAlign: "right" }}>Actions</th>
+                  <th style={{ textAlign: "right", paddingRight: "1.5rem" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -473,7 +474,7 @@ export default function ProductCatalogManager() {
                   const initials = p.product_name.substring(0, 2).toUpperCase();
                   return (
                     <tr key={p.id} className="table-row-hover">
-                      <td>
+                      <td style={{ paddingLeft: "1.5rem" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                           {/* Circular Gradient Avatar */}
                           <div className="topnav-profile-avatar" style={{
@@ -518,12 +519,12 @@ export default function ProductCatalogManager() {
                         </span>
                       </td>
                       <td>{p.updatedAt}</td>
-                      <td>
+                      <td style={{ paddingRight: "1.5rem" }}>
                         <div style={{ display: "flex", gap: "0.25rem", justifyContent: "flex-end" }}>
-                          <button type="button" className="small button-secondary" onClick={() => handleEdit(p)}>
+                          <button type="button" className="small button-secondary" style={{ borderRadius: "6px" }} onClick={() => handleEdit(p)}>
                             Edit
                           </button>
-                          <button type="button" className="small button-danger" onClick={() => void handleDelete(p.id)}>
+                          <button type="button" className="small button-danger" style={{ borderRadius: "6px" }} onClick={() => void handleDelete(p.id)}>
                             Delete
                           </button>
                         </div>
@@ -537,29 +538,43 @@ export default function ProductCatalogManager() {
         )}
       </section>
 
-      {/* 4. Bulk Spreadsheet Operations */}
-      <section className="card stack" style={{ gap: "1rem" }}>
-        <div className="panel-head">
-          <h3>Spreadsheet Bulk Import</h3>
-          <p className="subtle">Upload spreadsheets containing catalog listings or download audit layouts.</p>
+      {/* 5. Spreadsheet Bulk Operations dropzone style */}
+      <section className="card stack" style={{
+        gap: "1.25rem",
+        border: "2px dashed rgba(46, 125, 50, 0.25)",
+        backgroundColor: "rgba(46, 125, 50, 0.015)",
+        borderRadius: "16px",
+        padding: "2rem",
+        alignItems: "center",
+        textAlign: "center",
+        boxShadow: "none"
+      }}>
+        <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: "#E8F5E9", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", marginBottom: "0.25rem" }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+        </div>
+        <div className="panel-head" style={{ marginBottom: "0.5rem" }}>
+          <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0 }}>Spreadsheet Bulk Import</h3>
+          <p className="subtle" style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>Upload spreadsheets containing catalog listings or download the template layout.</p>
         </div>
         
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "1rem", marginTop: "0.5rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "1rem" }}>
           <a href="http://127.0.0.1:8000/api/v1/products/bulk/template?format=csv" download style={{ textDecoration: "none" }}>
-            <button type="button" className="button-secondary" style={{ boxShadow: "var(--shadow-sm)" }}>
+            <button type="button" className="button-secondary" style={{ boxShadow: "var(--shadow-sm)", padding: "0.5rem 1rem", fontSize: "0.82rem", borderRadius: "99px" }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: "0.25rem" }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download CSV Template
             </button>
           </a>
+
+          <span className="subtle" style={{ fontSize: "0.8rem", padding: "0 0.25rem" }}>or</span>
 
           <form onSubmit={handleBulkUpload} style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
             <input 
               type="file" 
               accept=".csv" 
               onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-              style={{ fontSize: "0.82rem" }}
+              style={{ fontSize: "0.82rem", cursor: "pointer" }}
             />
-            <button type="submit" disabled={!uploadFile || uploading}>
+            <button type="submit" style={{ padding: "0.5rem 1rem", fontSize: "0.82rem", borderRadius: "99px" }} disabled={!uploadFile || uploading}>
               {uploading ? "Importing Records..." : "Import CSV Catalog"}
             </button>
           </form>

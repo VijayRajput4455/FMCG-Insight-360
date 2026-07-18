@@ -36,6 +36,8 @@ export default function SettingsPage() {
   
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  
+  const [activeAccent, setActiveAccent] = useState<"green" | "red" | "blue" | "orange">("green");
 
   useEffect(() => {
     const syncChecked = () => {
@@ -44,10 +46,71 @@ export default function SettingsPage() {
     };
     syncChecked();
     window.addEventListener("themechange", syncChecked);
+    
+    const syncAccent = () => {
+      const savedAccent = localStorage.getItem("accent-theme") as any;
+      if (savedAccent && ["green", "red", "blue", "orange"].includes(savedAccent)) {
+        setActiveAccent(savedAccent);
+      }
+    };
+    syncAccent();
+    window.addEventListener("accentthemechange", syncAccent);
+
     return () => {
       window.removeEventListener("themechange", syncChecked);
+      window.removeEventListener("accentthemechange", syncAccent);
     };
   }, []);
+
+  const handleAccentChange = (color: "green" | "red" | "blue" | "orange") => {
+    setActiveAccent(color);
+    localStorage.setItem("accent-theme", color);
+    
+    const presets = {
+      green: {
+        primary: "#2E7D32",
+        secondary: "#43A047",
+        light: "#E8F5E9",
+        glow: "rgba(46, 125, 50, 0.12)",
+        shadow: "0 10px 30px rgba(46, 125, 50, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)",
+        shadowSm: "0 4px 12px rgba(46, 125, 50, 0.02)"
+      },
+      red: {
+        primary: "#C62828",
+        secondary: "#D32F2F",
+        light: "#FFEBEE",
+        glow: "rgba(198, 40, 40, 0.12)",
+        shadow: "0 10px 30px rgba(198, 40, 40, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)",
+        shadowSm: "0 4px 12px rgba(198, 40, 40, 0.02)"
+      },
+      blue: {
+        primary: "#1565C0",
+        secondary: "#1976D2",
+        light: "#E3F2FD",
+        glow: "rgba(21, 101, 192, 0.12)",
+        shadow: "0 10px 30px rgba(21, 101, 192, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)",
+        shadowSm: "0 4px 12px rgba(21, 101, 192, 0.02)"
+      },
+      orange: {
+        primary: "#E65100",
+        secondary: "#F57C00",
+        light: "#FFF3E0",
+        glow: "rgba(230, 81, 0, 0.12)",
+        shadow: "0 10px 30px rgba(230, 81, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)",
+        shadowSm: "0 4px 12px rgba(230, 81, 0, 0.02)"
+      }
+    };
+    
+    const p = presets[color] || presets.green;
+    document.documentElement.style.setProperty("--accent-primary", p.primary);
+    document.documentElement.style.setProperty("--accent-secondary", p.secondary);
+    document.documentElement.style.setProperty("--accent-light", p.light);
+    document.documentElement.style.setProperty("--accent-glow", p.glow);
+    document.documentElement.style.setProperty("--shadow", p.shadow);
+    document.documentElement.style.setProperty("--shadow-sm", p.shadowSm);
+    
+    window.dispatchEvent(new Event("accentthemechange"));
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,12 +124,24 @@ export default function SettingsPage() {
 
   return (
     <div className="container stack" style={{ gap: "2rem" }}>
-      {/* Page Header */}
-      <header className="hero">
-        <span className="kpi-label" style={{ color: "var(--accent-primary)" }}>Administration</span>
-        <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0 0" }}>Control Console Settings</h1>
-        <p className="subtle">Modify system operational values, design parameters, and model thresholds.</p>
-      </header>
+      {/* Large Hero Header Card */}
+      <section className="card" style={{
+        background: "linear-gradient(135deg, var(--accent-light) 0%, var(--bg) 100%)",
+        border: "1px solid var(--accent-glow)",
+        position: "relative",
+        overflow: "hidden",
+        padding: "2rem",
+        borderLeft: "4px solid var(--accent-primary)"
+      }}>
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.08em", color: "var(--accent-primary)" }}>Administration</span>
+          <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0 0", color: "var(--accent-primary)" }}>Control Console Settings</h1>
+          <div className="main-header-line" />
+          <p style={{ color: "var(--text-secondary)", margin: "0.5rem 0 0", fontSize: "0.9rem", lineHeight: "1.5" }}>
+            Modify system operational values, design parameters, and model thresholds.
+          </p>
+        </div>
+      </section>
 
       {/* Modern Tabs Row */}
       <div className="settings-tabs" style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
@@ -113,7 +188,7 @@ export default function SettingsPage() {
         {activeTab === "general" && (
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "2rem" }} className="detail-grid">
             {/* Left Card: Input form */}
-            <div className="card stack" style={{ gap: "1.25rem" }}>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #E53935" }}>
               <h2>General Setup</h2>
               <label>
                 <span>Console Application Name</span>
@@ -140,10 +215,10 @@ export default function SettingsPage() {
             </div>
 
             {/* Right Card: Theme variables */}
-            <div className="card stack" style={{ gap: "1.25rem" }}>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #1E88E5" }}>
               <h2>Appearance Theme</h2>
               <p className="subtle">Toggle visual parameters to switch themes dynamically.</p>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1.25rem" }}>
                 <span>Dark Color Theme</span>
                 <input
                   type="checkbox"
@@ -159,6 +234,73 @@ export default function SettingsPage() {
                   style={{ width: "16px", height: "16px", cursor: "pointer" }}
                 />
               </div>
+
+              {/* Accent Color theme toggles */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)" }}>Accent Color Shading</span>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleAccentChange("green")}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "0.5rem",
+                      padding: "0.45rem 0.95rem", borderRadius: "99px",
+                      border: activeAccent === "green" ? "2px solid #2E7D32" : "1px solid var(--border)",
+                      background: activeAccent === "green" ? "#E8F5E9" : "var(--surface)",
+                      color: "#2E7D32", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer",
+                      transition: "all 0.25s"
+                    }}
+                  >
+                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#2E7D32" }} />
+                    Green
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAccentChange("red")}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "0.5rem",
+                      padding: "0.45rem 0.95rem", borderRadius: "99px",
+                      border: activeAccent === "red" ? "2px solid #C62828" : "1px solid var(--border)",
+                      background: activeAccent === "red" ? "#FFEBEE" : "var(--surface)",
+                      color: "#C62828", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer",
+                      transition: "all 0.25s"
+                    }}
+                  >
+                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#C62828" }} />
+                    Red
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAccentChange("blue")}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "0.5rem",
+                      padding: "0.45rem 0.95rem", borderRadius: "99px",
+                      border: activeAccent === "blue" ? "2px solid #1565C0" : "1px solid var(--border)",
+                      background: activeAccent === "blue" ? "#E3F2FD" : "var(--surface)",
+                      color: "#1565C0", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer",
+                      transition: "all 0.25s"
+                    }}
+                  >
+                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#1565C0" }} />
+                    Blue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAccentChange("orange")}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "0.5rem",
+                      padding: "0.45rem 0.95rem", borderRadius: "99px",
+                      border: activeAccent === "orange" ? "2px solid #E65100" : "1px solid var(--border)",
+                      background: activeAccent === "orange" ? "#FFF3E0" : "var(--surface)",
+                      color: "#E65100", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer",
+                      transition: "all 0.25s"
+                    }}
+                  >
+                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#E65100" }} />
+                    Orange
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -166,7 +308,7 @@ export default function SettingsPage() {
         {/* TAB 2: Branding Settings */}
         {activeTab === "branding" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }} className="detail-grid">
-            <div className="card stack" style={{ gap: "1.25rem" }}>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #E53935" }}>
               <h2>Console Identity</h2>
               <label>
                 <span>Company Organization Name</span>
@@ -182,7 +324,7 @@ export default function SettingsPage() {
               </label>
             </div>
 
-            <div className="card stack" style={{ gap: "1.25rem" }}>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #1E88E5" }}>
               <h2>Company Logo Uploader</h2>
               <p className="subtle">Drop organization logo file (.PNG or .SVG format).</p>
               <div style={{ border: "2px dashed var(--border)", borderRadius: "12px", padding: "2rem", textAlign: "center", cursor: "pointer", background: "var(--bg)" }}>
@@ -197,7 +339,7 @@ export default function SettingsPage() {
 
         {/* TAB 3: Users */}
         {activeTab === "users" && (
-          <div className="card stack" style={{ gap: "1.5rem" }}>
+          <div className="card stack" style={{ gap: "1.5rem", borderLeft: "4px solid #43A047" }}>
             <div className="row-between" style={{ alignItems: "center" }}>
               <div>
                 <h2>Active Operator Directory</h2>
@@ -242,7 +384,7 @@ export default function SettingsPage() {
 
         {/* TAB 4: Roles */}
         {activeTab === "roles" && (
-          <div className="card stack" style={{ gap: "1.5rem" }}>
+          <div className="card stack" style={{ gap: "1.5rem", borderLeft: "4px solid #FB8C00" }}>
             <h2>System Access Roles</h2>
             <div className="table-wrap">
               <table>
@@ -278,7 +420,7 @@ export default function SettingsPage() {
         {/* TAB 5: Notifications */}
         {activeTab === "notifications" && (
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "2rem" }} className="detail-grid">
-            <div className="card stack" style={{ gap: "1.25rem" }}>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #E53935" }}>
               <h2>Alert Triggers</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -304,7 +446,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
-            <div className="card stack" style={{ gap: "1rem" }}>
+            <div className="card stack" style={{ gap: "1rem", borderLeft: "4px solid #1E88E5" }}>
               <h2>Log Telemetry Toggles</h2>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
@@ -320,7 +462,7 @@ export default function SettingsPage() {
         {/* TAB 6: AI & Audit Rules */}
         {activeTab === "ai" && (
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "2rem" }} className="detail-grid">
-            <div className="card stack" style={{ gap: "1.25rem" }}>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #43A047" }}>
               <h2>Hyperparameter Defaults</h2>
               <label>
                 <span>Default Image Scan Resolution</span>
@@ -342,7 +484,7 @@ export default function SettingsPage() {
               </label>
             </div>
 
-            <div className="card stack" style={{ gap: "1.25rem" }}>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #FB8C00" }}>
               <h2>Audit Quality Thresholds</h2>
               <label>
                 <span>Minimum Compliance Pass Rate ({minPassRate}%)</span>
@@ -363,7 +505,7 @@ export default function SettingsPage() {
         {/* TAB 7: System Infrastructure */}
         {activeTab === "system" && (
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "2rem" }} className="detail-grid">
-            <div className="card stack" style={{ gap: "1.25rem" }}>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #E53935" }}>
               <h2>Infrastructure Workers</h2>
               <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "1rem" }}>
                 <label>
@@ -388,7 +530,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="card stack" style={{ gap: "1.25rem" }}>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #1E88E5" }}>
               <h2>Scan File Archiving</h2>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>

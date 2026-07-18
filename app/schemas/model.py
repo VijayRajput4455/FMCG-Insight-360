@@ -10,6 +10,7 @@ class ModelCreate(BaseModel):
     image_size: Optional[int] = Field(1280, ge=320, le=2048)
     conf_threshold: Optional[float] = Field(0.25, ge=0.0, le=1.0)
     iou_threshold: Optional[float] = Field(0.45, ge=0.0, le=1.0)
+    is_active: Optional[bool] = True
 
     @field_validator('conf_threshold', 'iou_threshold')
     @classmethod
@@ -26,6 +27,7 @@ class ModelUpdate(BaseModel):
     image_size: Optional[int] = Field(None, ge=320, le=2048)
     conf_threshold: Optional[float] = Field(None, ge=0.0, le=1.0)
     iou_threshold: Optional[float] = Field(None, ge=0.0, le=1.0)
+    is_active: Optional[bool] = None
 
     @field_validator('conf_threshold', 'iou_threshold')
     @classmethod
@@ -43,6 +45,7 @@ class ModelResponse(BaseModel):
     image_size: int
     conf_threshold: float
     iou_threshold: float
+    is_active: bool
     created_at: datetime
 
     class Config:

@@ -24,8 +24,6 @@ type ParsedProductCode = {
 const EMPTY_FORM = {
   product_code: "",
   descriptionText: "",
-  category: "Beverages",
-  brand: "",
   status: "active" as "active" | "inactive",
 };
 
@@ -38,7 +36,6 @@ export default function ProductCodeManager() {
 
   // Filters & Search
   const [query, setQuery] = useState("");
-  const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
 
   // Pagination
@@ -105,24 +102,22 @@ export default function ProductCodeManager() {
     return items.filter((item) => {
       const matchesSearch =
         item.product_code.toLowerCase().includes(query.toLowerCase()) ||
-        item.descriptionText.toLowerCase().includes(query.toLowerCase()) ||
-        item.brand.toLowerCase().includes(query.toLowerCase());
+        item.descriptionText.toLowerCase().includes(query.toLowerCase());
 
-      const matchesCategory = filterCategory === "all" || item.category === filterCategory;
       const matchesStatus = filterStatus === "all" || item.status === filterStatus;
 
-      return matchesSearch && matchesCategory && matchesStatus;
+      return matchesSearch && matchesStatus;
     });
-  }, [items, query, filterCategory, filterStatus]);
+  }, [items, query, filterStatus]);
 
   // Statistics
   const stats = useMemo(() => {
     const total = items.length;
     const documented = items.filter((i) => i.descriptionText.trim().length > 0).length;
     const visible = filteredItems.length;
-    const matching = items.filter((i) => i.category === "Beverages").length; // Beverages counts
+    const active = items.filter((i) => i.status === "active").length;
 
-    return { total, documented, visible, matching };
+    return { total, documented, visible, active };
   }, [items, filteredItems]);
 
   // Paginated items
@@ -135,7 +130,7 @@ export default function ProductCodeManager() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [query, filterCategory, filterStatus]);
+  }, [query, filterStatus]);
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -148,25 +143,35 @@ export default function ProductCodeManager() {
     setForm({
       product_code: item.product_code,
       descriptionText: item.descriptionText,
-      category: item.category,
-      brand: item.brand,
       status: item.status,
     });
     setError(null);
     setSuccessMessage(null);
   }
 
-  function startDuplicate(item: ParsedProductCode) {
-    setEditingCode(null);
-    setForm({
-      product_code: `${item.product_code}_COPY`,
-      descriptionText: item.descriptionText,
+  async function handleToggleStatus(item: ParsedProductCode) {
+    setSaving(true);
+    setError(null);
+    setSuccessMessage(null);
+    const nextStatus = item.status === "active" ? "inactive" : "active";
+    const serializedDescription = JSON.stringify({
+      note: item.descriptionText,
       category: item.category,
       brand: item.brand,
-      status: item.status,
+      status: nextStatus,
     });
-    setError(null);
-    setSuccessMessage(`Duplicated parameters of ${item.product_code}. Ready for save.`);
+    try {
+      await updateProductCodeByName(item.product_code, {
+        product_code: item.product_code,
+        description: serializedDescription,
+      });
+      setSuccessMessage(`SKU "${item.product_code}" ${nextStatus === "active" ? "activated" : "deactivated"} successfully.`);
+      await loadProductCodes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to toggle status");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -178,8 +183,8 @@ export default function ProductCodeManager() {
     // Serialize details inside description field
     const serializedDescription = JSON.stringify({
       note: form.descriptionText,
-      category: form.category,
-      brand: form.brand,
+      category: "Other",
+      brand: "Standard",
       status: form.status,
     });
 
@@ -231,72 +236,53 @@ export default function ProductCodeManager() {
 
   return (
     <div className="stack" style={{ gap: "2rem" }}>
-      {/* 1. Large Hero Header Card */}
-      <section className="card row-between" style={{
-        background: "linear-gradient(135deg, #E8F5E9 0%, #FAFCF8 100%)",
-        border: "1px solid rgba(46, 125, 50, 0.12)",
+      {/* Large Hero Header Card (no buttons) */}
+      <section className="card" style={{
+        background: "linear-gradient(135deg, var(--accent-light) 0%, var(--bg) 100%)",
+        border: "1px solid var(--accent-glow)",
         position: "relative",
         overflow: "hidden",
-        padding: "2rem"
+        padding: "2rem",
+        borderLeft: "4px solid var(--accent-primary)"
       }}>
-        <div style={{ position: "relative", zIndex: 2, maxWidth: "60%" }}>
+        <div style={{ position: "relative", zIndex: 2 }}>
           <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.08em", color: "var(--accent-primary)" }}>FMCG Inventory Mapping</span>
-          <h2 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0", color: "#1B1B1B" }}>Product Code Administration</h2>
+          <h2 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0", color: "var(--accent-primary)" }}>Product Code Administration</h2>
+          <div className="main-header-line" />
           <p style={{ color: "var(--text-secondary)", margin: "0.5rem 0 0", fontSize: "0.9rem", lineHeight: "1.5" }}>
             Configure and maintain standard SKU category codes that operators map during neural shelf scans and operations audits.
           </p>
         </div>
-
-        {/* Tag Illustration inside Hero */}
-        <div className="hero-illustration" style={{ display: "flex", gap: "0.5rem", alignItems: "center", zIndex: 2 }}>
-          <div style={{ padding: "0.5rem 1rem", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "99px", fontSize: "0.8rem", fontWeight: 700, color: "var(--accent-primary)", display: "flex", alignItems: "center", gap: "0.35rem", boxShadow: "var(--shadow-sm)" }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            <span>SKU Tag</span>
-          </div>
-          <div style={{ padding: "0.5rem 1rem", background: "#E8F5E9", border: "1px solid rgba(46,125,50,0.15)", borderRadius: "99px", fontSize: "0.8rem", fontWeight: 700, color: "var(--accent-primary)", display: "flex", alignItems: "center", gap: "0.35rem", boxShadow: "var(--shadow-sm)" }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
-            <span>Audits Map</span>
-          </div>
-          <button 
-            type="button" 
-            className="button-secondary small" 
-            style={{ borderRadius: "99px", padding: "0.5rem 1rem" }}
-            onClick={() => void loadProductCodes()} 
-            disabled={loading || saving}
-          >
-            Refresh
-          </button>
-        </div>
       </section>
 
-      {/* 2. Four Statistics Cards */}
+      {/* 1. Statistics Cards */}
       <section className="kpi-grid">
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--danger)" }}>
-          <span className="kpi-label">Total Product Codes</span>
-          <strong className="kpi-value">{stats.total}</strong>
-          <span className="kpi-sub">Total database SKU mappings</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #E53935", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF3F3 40%, #FFCDD2 70%, #EF5350 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#C62828", fontWeight: 700 }}>Total Product Codes</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{stats.total}</strong>
+          <span className="kpi-sub" style={{ color: "#B71C1C", fontWeight: 500 }}>Total database SKU mappings</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--info)" }}>
-          <span className="kpi-label">Documented Codes</span>
-          <strong className="kpi-value">{stats.documented}</strong>
-          <span className="kpi-sub">SKUs with description metadata</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #1E88E5", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F8FF 40%, #B3E5FC 70%, #42A5F5 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#0D47A1", fontWeight: 700 }}>Documented Codes</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{stats.documented}</strong>
+          <span className="kpi-sub" style={{ color: "#0D47A1", fontWeight: 500 }}>SKUs with description metadata</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--success)" }}>
-          <span className="kpi-label">Visible Codes</span>
-          <strong className="kpi-value">{stats.visible}</strong>
-          <span className="kpi-sub">Matching search query filters</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #43A047", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F9F1 40%, #C8E6C9 70%, #66BB6A 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#1B5E20", fontWeight: 700 }}>Visible Codes</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{stats.visible}</strong>
+          <span className="kpi-sub" style={{ color: "#1B5E20", fontWeight: 500 }}>Matching search query filters</span>
         </div>
-        <div className="kpi-card" style={{ borderLeft: "4px solid var(--warning)" }}>
-          <span className="kpi-label">Beverage Mappings</span>
-          <strong className="kpi-value">{stats.matching}</strong>
-          <span className="kpi-sub">Assigned to beverages category</span>
+        <div className="kpi-card" style={{ borderLeft: "4px solid #FB8C00", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF8F1 40%, #FFE0B2 70%, #FFA726 100%)", boxShadow: "var(--shadow-sm)" }}>
+          <span className="kpi-label" style={{ color: "#E65100", fontWeight: 700 }}>Active Codes</span>
+          <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{stats.active}</strong>
+          <span className="kpi-sub" style={{ color: "#D84315", fontWeight: 500 }}>Currently active SKU definitions</span>
         </div>
       </section>
 
-      {/* 3. Main Split Grid */}
+      {/* 2. Main Split Grid */}
       <div className="detail-grid">
         {/* Left Column: Form Editor */}
-        <section className="card stack" style={{ alignSelf: "start" }}>
+        <section className="card stack" style={{ alignSelf: "start", borderLeft: "4px solid #E53935" }}>
           <div className="panel-head row-between" style={{ borderBottom: "1px solid var(--border)", paddingBottom: "1rem" }}>
             <div>
               <span className="kpi-label" style={{ color: "var(--accent-primary)" }}>Form Configuration</span>
@@ -326,45 +312,16 @@ export default function ProductCodeManager() {
             </label>
 
             <label>
-              <span>Category *</span>
+              <span>Status *</span>
               <select
-                value={form.category}
-                onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}
+                value={form.status}
+                onChange={(e) => setForm((c) => ({ ...c, status: e.target.value as any }))}
                 required
               >
-                <option value="Beverages">Beverages</option>
-                <option value="Snacks">Snacks</option>
-                <option value="Dairy">Dairy</option>
-                <option value="Personal Care">Personal Care</option>
-                <option value="Home Care">Home Care</option>
-                <option value="Packaged Food">Packaged Food</option>
-                <option value="Confectionery">Confectionery</option>
-                <option value="Other">Other</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
               </select>
             </label>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "1rem" }}>
-              <label>
-                <span>Brand</span>
-                <input
-                  value={form.brand}
-                  onChange={(e) => setForm((c) => ({ ...c, brand: e.target.value }))}
-                  placeholder="e.g. Coca-Cola Co."
-                />
-              </label>
-
-              <label>
-                <span>Status *</span>
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm((c) => ({ ...c, status: e.target.value as any }))}
-                  required
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </label>
-            </div>
 
             <label>
               <span>Description</span>
@@ -389,40 +346,36 @@ export default function ProductCodeManager() {
         </section>
 
         {/* Right Column: Code Registry */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #1E88E5" }}>
           <div className="panel-head row-between" style={{ borderBottom: "1px solid var(--border)", paddingBottom: "1rem" }}>
             <div>
               <span className="kpi-label" style={{ color: "var(--info)" }}>Database</span>
               <h3 style={{ margin: "0.25rem 0 0" }}>Existing Product Codes</h3>
             </div>
-            <span className="chip processing" style={{ fontSize: "0.7rem", fontWeight: 700 }}>
-              {filteredItems.length} Mapped
-            </span>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <button 
+                type="button" 
+                className="button-secondary small" 
+                style={{ borderRadius: "8px", padding: "0.35rem 0.75rem" }}
+                onClick={() => void loadProductCodes()} 
+                disabled={loading || saving}
+              >
+                Refresh
+              </button>
+              <span className="chip processing" style={{ fontSize: "0.7rem", fontWeight: 700 }}>
+                {filteredItems.length} Mapped
+              </span>
+            </div>
           </div>
 
           {/* Search and Filters */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: "0.5rem", marginTop: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "0.5rem", marginTop: "1rem" }}>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search code, brand..."
+              placeholder="Search code..."
               style={{ padding: "0.45rem 0.75rem", fontSize: "0.82rem" }}
             />
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              style={{ padding: "0.45rem 0.75rem", fontSize: "0.82rem" }}
-            >
-              <option value="all">All Categories</option>
-              <option value="Beverages">Beverages</option>
-              <option value="Snacks">Snacks</option>
-              <option value="Dairy">Dairy</option>
-              <option value="Personal Care">Personal Care</option>
-              <option value="Home Care">Home Care</option>
-              <option value="Packaged Food">Packaged Food</option>
-              <option value="Confectionery">Confectionery</option>
-              <option value="Other">Other</option>
-            </select>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -455,7 +408,6 @@ export default function ProductCodeManager() {
                   <thead>
                     <tr>
                       <th>SKU Code</th>
-                      <th>Category / Brand</th>
                       <th>Status</th>
                       <th style={{ textAlign: "right" }}>Actions</th>
                     </tr>
@@ -479,18 +431,26 @@ export default function ProductCodeManager() {
                           </div>
                         </td>
                         <td>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
-                            <span>{item.category}</span>
-                            <span className="subtle" style={{ fontSize: "0.72rem" }}>{item.brand}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span 
-                            className={`chip ${item.status === "active" ? "completed" : "failed"}`}
-                            style={{ fontSize: "0.7rem", fontWeight: 700 }}
+                          <button
+                            type="button"
+                            onClick={() => void handleToggleStatus(item)}
+                            title={item.status === "active" ? "Click to deactivate" : "Click to activate"}
+                            style={{
+                              display: "flex", alignItems: "center", gap: "0.4rem",
+                              padding: "0.25rem 0.65rem", borderRadius: "99px", border: "none",
+                              cursor: "pointer", fontSize: "0.7rem", fontWeight: 700,
+                              background: item.status === "active" ? "#e6f9f0" : "#fdecea",
+                              color: item.status === "active" ? "#15803d" : "#b91c1c",
+                              transition: "all 0.2s"
+                            }}
                           >
-                            {item.status}
-                          </span>
+                            <span style={{
+                              width: "6px", height: "6px", borderRadius: "50%",
+                              background: item.status === "active" ? "#15803d" : "#b91c1c",
+                              display: "inline-block"
+                            }} />
+                            {item.status === "active" ? "Active" : "Inactive"}
+                          </button>
                         </td>
                         <td>
                           <div style={{ display: "flex", gap: "0.25rem", justifyContent: "flex-end" }}>
@@ -501,14 +461,6 @@ export default function ProductCodeManager() {
                               title="Edit SKU"
                             >
                               Edit
-                            </button>
-                            <button 
-                              type="button" 
-                              className="small button-secondary" 
-                              onClick={() => startDuplicate(item)}
-                              title="Duplicate SKU Settings"
-                            >
-                              Dup
                             </button>
                             <button 
                               type="button" 

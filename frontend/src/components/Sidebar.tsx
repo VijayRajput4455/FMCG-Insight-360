@@ -12,7 +12,7 @@ type MenuItem = {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
 
   useEffect(() => {
     const syncTheme = () => {
@@ -24,6 +24,9 @@ export default function Sidebar() {
         if (savedTheme) {
           setTheme(savedTheme);
           document.documentElement.setAttribute("data-theme", savedTheme);
+        } else {
+          setTheme("light");
+          document.documentElement.setAttribute("data-theme", "light");
         }
       }
     };

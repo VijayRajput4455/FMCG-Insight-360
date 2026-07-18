@@ -284,7 +284,7 @@ export default function AuditConsole() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.5rem" }} className="detail-grid">
         
         {/* Col 1: Upload Panel */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #E53935" }}>
           <h2>Upload Image</h2>
           
           <div className="segmented" role="tablist">
@@ -359,7 +359,7 @@ export default function AuditConsole() {
         </section>
 
         {/* Col 2: Stepper Progress (Matches Screen 2 Middle) */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #1E88E5" }}>
           <h2>Live Progress</h2>
           <div className="stepper-container">
             <div className={`step-item ${currentStepNum >= 1 ? "completed" : ""} ${currentStepNum === 1 ? "active" : ""}`}>
@@ -405,7 +405,7 @@ export default function AuditConsole() {
         </section>
 
         {/* Col 3: Broker Tracker (Matches Screen 2 Right) */}
-        <section className="card stack">
+        <section className="card stack" style={{ borderLeft: "4px solid #43A047" }}>
           <h2>Broker Runtime Tracker</h2>
           <div className="metrics" style={{ marginTop: "0.5rem" }}>
             <div className="metric">
@@ -437,7 +437,7 @@ export default function AuditConsole() {
       </div>
 
       {/* Output View (Matches Screen 3 Design) */}
-      <section className="card full">
+      <section className="card full" style={{ borderLeft: "4px solid #FB8C00" }}>
         <h2>Audit Output View</h2>
         {!resultJson ? (
           <div className="empty-state" style={{ padding: "2.5rem" }}>

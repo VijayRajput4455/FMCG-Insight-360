@@ -40,7 +40,9 @@ services:
     # Load environment variables
     env_file:
       - .env.docker
-
+    environment:
+      - ML_MODEL_DIR=/app/container_models
+      - CONTAINER_MODE=true
     # Expose FastAPI
     # Host:8000 -> Container:8000
     ports:
@@ -61,10 +63,14 @@ services:
     #     AI Models
     #
     volumes:
+      - model_store:/app/container_models
+      - ./ml_models:/app/host_models:ro
+      - ./docker/init_models.sh:/usr/local/bin/init_models.sh
       - ./logs:/app/logs
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
-      - ./ml_models:/app/ml_models
+    entrypoint: ["/usr/local/bin/init_models.sh"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
     # Wait until dependencies become healthy
     depends_on:
@@ -130,12 +136,17 @@ services:
 
     env_file:
       - .env.docker
-
+    environment:
+      - ML_MODEL_DIR=/app/container_models
+      - CONTAINER_MODE=true
     volumes:
+      - model_store:/app/container_models:ro
+      - ./ml_models:/app/host_models:ro
+      - ./docker/init_models.sh:/usr/local/bin/init_models.sh:ro
       - ./logs:/app/logs
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
-      - ./ml_models:/app/ml_models
+    entrypoint: ["/usr/local/bin/init_models.sh"]
 
     depends_on:
       postgres:
@@ -498,6 +509,7 @@ volumes:
   redis_data:
   grafana_data:
   prometheus_data:
+  model_store:
 
 
 

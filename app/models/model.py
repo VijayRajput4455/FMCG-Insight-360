@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -22,6 +22,9 @@ class Model(Base):
     image_size = Column(Integer, default=1280)
     conf_threshold = Column(Float, default=0.25)
     iou_threshold = Column(Float, default=0.45)
+
+    # Status
+    is_active = Column(Boolean, default=True, nullable=False, server_default="true")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)

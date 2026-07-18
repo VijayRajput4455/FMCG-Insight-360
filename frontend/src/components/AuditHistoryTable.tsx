@@ -185,7 +185,7 @@ export default function AuditHistoryTable() {
   };
 
   return (
-    <section className="card full stack" style={{ position: "relative" }}>
+    <section className="card full stack" style={{ position: "relative", borderLeft: "4px solid #E53935" }}>
       {/* Page Header */}
       <div className="row-between" style={{ borderBottom: "1px solid var(--border)", paddingBottom: "1rem", alignItems: "center" }}>
         <div style={{ display: "flex", gap: "1.25rem", alignItems: "center" }}>

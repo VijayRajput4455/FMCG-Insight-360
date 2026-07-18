@@ -61,6 +61,10 @@ class ModelService:
         from app.core.config import settings
         base_dir = getattr(settings, "ML_MODEL_DIR", "ml_models")
 
+        # In container mode, forbid absolute host paths to maintain isolation
+        if os.getenv("CONTAINER_MODE") == "true" and os.path.isabs(model_path):
+            raise ValueError(f"Absolute paths are not allowed in container mode: {model_path}")
+
         # If it is absolute, return normalized path
         if os.path.isabs(model_path):
             return os.path.normpath(model_path)

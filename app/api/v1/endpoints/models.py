@@ -65,9 +65,13 @@ def create_model(data: ModelCreate, db: Session = Depends(get_db)):
 def get_all_models(
 	skip: int = Query(0, ge=0),
 	limit: int = Query(50, ge=1, le=200),
+	active_only: bool = Query(False, description="If true, return only active models"),
 	db: Session = Depends(get_db),
 ):
-	return db.query(Model).offset(skip).limit(limit).all()
+	q = db.query(Model)
+	if active_only:
+		q = q.filter(Model.is_active == True)
+	return q.offset(skip).limit(limit).all()
 
 
 @router.get(
@@ -107,6 +111,26 @@ def get_model(model_id: int, db: Session = Depends(get_db)):
 	obj = db.query(Model).filter(Model.id == model_id).first()
 	if not obj:
 		raise HTTPException(status_code=404, detail="Model not found")
+	return obj
+
+
+@router.patch(
+	"/{model_id}/toggle-active",
+	response_model=ModelResponse,
+	responses={404: _ERROR_RESPONSES[404]},
+	summary="Toggle model active/inactive status",
+)
+def toggle_model_active(model_id: int, db: Session = Depends(get_db)):
+	obj = db.query(Model).filter(Model.id == model_id).first()
+	if not obj:
+		raise HTTPException(status_code=404, detail="Model not found")
+
+	obj.is_active = not obj.is_active
+	db.commit()
+	db.refresh(obj)
+
+	status_str = "activated" if obj.is_active else "deactivated"
+	logger.info(f"Model id={obj.id} name={obj.model_name} {status_str}")
 	return obj
 
 
