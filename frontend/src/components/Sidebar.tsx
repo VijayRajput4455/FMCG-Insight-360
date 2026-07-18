@@ -13,6 +13,7 @@ type MenuItem = {
 export default function Sidebar() {
   const pathname = usePathname();
   const [theme, setTheme] = useState<"dark" | "light">("light");
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const syncTheme = () => {
@@ -33,10 +34,24 @@ export default function Sidebar() {
 
     syncTheme();
     window.addEventListener("themechange", syncTheme);
+
+    const savedCollapsed = localStorage.getItem("sidebar-collapsed");
+    if (savedCollapsed !== null) {
+      setCollapsed(savedCollapsed === "true");
+      document.body.classList.toggle("sidebar-collapsed", savedCollapsed === "true");
+    }
+
     return () => {
       window.removeEventListener("themechange", syncTheme);
     };
   }, []);
+
+  const toggleSidebar = () => {
+    const nextCollapsed = !collapsed;
+    setCollapsed(nextCollapsed);
+    localStorage.setItem("sidebar-collapsed", String(nextCollapsed));
+    document.body.classList.toggle("sidebar-collapsed", nextCollapsed);
+  };
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -107,9 +122,24 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--accent-primary)'}}><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
-        <span>FMCG <span>Insight</span></span>
+      <div className="sidebar-logo-row">
+        <div className="sidebar-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--accent-primary)'}}><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>FMCG <span>Insight</span></span>
+        </div>
+        <button
+          type="button"
+          className="sidebar-collapse-btn"
+          onClick={toggleSidebar}
+          aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
+          title={collapsed ? "Show sidebar" : "Hide sidebar"}
+        >
+          {collapsed ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /><polyline points="9 18 3 12 9 6" /></svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /><polyline points="3 18 9 12 3 6" /></svg>
+          )}
+        </button>
       </div>
       <nav style={{ flexGrow: 1 }}>
         <ul className="sidebar-menu">
@@ -148,7 +178,7 @@ export default function Sidebar() {
           )}
         </button>
       </div>
-      <div className="subtle" style={{ textAlign: 'center', fontSize: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+      <div className="sidebar-footer subtle" style={{ textAlign: 'center', fontSize: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
         Admin Console
       </div>
     </aside>

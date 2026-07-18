@@ -81,8 +81,8 @@ html, body {
   font-family: var(--font-family);
   background-color: var(--bg);
   background-image: var(--bg-photo);
-  background-size: contain;
-  background-position: top center;
+  background-size: cover;
+  background-position: center 18%;
   background-repeat: no-repeat;
   background-attachment: fixed;
   color: var(--text-primary);
@@ -138,6 +138,31 @@ body::after {
   height: 100vh;
   z-index: 10;
   box-shadow: var(--shadow);
+}
+
+.sidebar-logo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sidebar-collapse-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  padding: 0;
+  flex: 0 0 auto;
+  background: var(--accent-light);
+  color: var(--accent-primary);
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--accent-light);
+  color: var(--accent-primary);
+  box-shadow: none;
 }
 
 .sidebar::after {
@@ -211,6 +236,49 @@ body::after {
   width: 3px;
   border-radius: 99px;
   background: linear-gradient(180deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+}
+
+body.sidebar-collapsed .sidebar {
+  width: 92px;
+  padding: 2rem 0.75rem;
+}
+
+body.sidebar-collapsed .sidebar-logo {
+  justify-content: center;
+}
+
+body.sidebar-collapsed .sidebar-logo span,
+body.sidebar-collapsed .sidebar-link span,
+body.sidebar-collapsed .theme-toggle-btn span,
+body.sidebar-collapsed .sidebar-footer {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-menu {
+  align-items: center;
+}
+
+body.sidebar-collapsed .sidebar-link {
+  justify-content: center;
+  width: 100%;
+  padding: 0.8rem;
+}
+
+body.sidebar-collapsed .sidebar-link.active::before {
+  left: 4px;
+}
+
+body.sidebar-collapsed .theme-toggle-container {
+  padding: 0;
+}
+
+body.sidebar-collapsed .theme-toggle-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+body.sidebar-collapsed .main-wrapper {
+  margin-left: 92px;
 }
 
 .main-wrapper {
