@@ -60,8 +60,8 @@ function buildUrl(path: string): string {
 
 async function extractError(response: Response, fallbackMessage: string): Promise<string> {
   try {
-    const data = (await response.json()) as { detail?: string };
-    return data.detail || fallbackMessage;
+    const data = (await response.json()) as { detail?: string; message?: string };
+    return data.message || data.detail || fallbackMessage;
   } catch {
     return fallbackMessage;
   }

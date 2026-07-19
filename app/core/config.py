@@ -4,12 +4,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _env_bool(name: str, default: str = "false") -> bool:
+    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
 class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_DIR: str = os.getenv("LOG_DIR", "logs")
     LOG_FILE: str = os.getenv("LOG_FILE", "FMCG-Insight-360.log")
-    AUTO_START_WORKER: bool = os.getenv("AUTO_START_WORKER", "false").strip().lower() in {"1", "true", "yes", "on"}
+    AUTO_START_WORKER: bool = _env_bool("AUTO_START_WORKER")
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
@@ -30,5 +34,15 @@ class Settings:
     RATE_LIMIT_REQUESTS_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_REQUESTS_PER_MINUTE", "10"))
     RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
     ML_MODEL_DIR: str = os.getenv("ML_MODEL_DIR", os.getenv("ML_FOLDER", "ml_models"))
+    MINIO_ENABLED: bool = _env_bool("MINIO_ENABLED")
+    MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+    MINIO_PUBLIC_ENDPOINT: str = os.getenv("MINIO_PUBLIC_ENDPOINT", MINIO_ENDPOINT)
+    MINIO_ACCESS_KEY: str = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+    MINIO_SECRET_KEY: str = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+    MINIO_SECURE: bool = _env_bool("MINIO_SECURE")
+    MINIO_AUTO_CREATE_BUCKETS: bool = _env_bool("MINIO_AUTO_CREATE_BUCKETS", "true")
+    MINIO_INPUT_BUCKET: str = os.getenv("MINIO_INPUT_BUCKET", "audit-input")
+    MINIO_OUTPUT_BUCKET: str = os.getenv("MINIO_OUTPUT_BUCKET", "audit-output")
+    MINIO_PRESIGNED_URL_EXPIRY_SECONDS: int = int(os.getenv("MINIO_PRESIGNED_URL_EXPIRY_SECONDS", "3600"))
 
 settings = Settings()

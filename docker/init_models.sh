@@ -28,13 +28,14 @@ if [ -w "/app/container_models" ]; then
   # Fetch distinct model_path values from the DB using a short Python snippet
   MODEL_PATHS=$(python - <<'PY'
 import sqlalchemy as sa
-from app.core.database import engine
-from app.models.model import Model
+from app.core.database import engine, Base
+from app.models import *
+Base.metadata.create_all(bind=engine)
 with engine.connect() as conn:
     rows = conn.execute(sa.select(Model.model_path)).fetchall()
     for (p,) in rows:
         if p:
-            print(p)
+            print(p.replace("\\", "/"))
 PY
 )
 

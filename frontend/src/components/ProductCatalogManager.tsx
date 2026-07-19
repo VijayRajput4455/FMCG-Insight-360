@@ -28,7 +28,7 @@ export default function ProductCatalogManager() {
   const [productName, setProductName] = useState("");
   const [productCodeId, setProductCodeId] = useState<number | "">("");
   const [brand, setBrand] = useState("");
-  const [category, setCategory] = useState("Beverages");
+  const [category, setCategory] = useState("");
   const [aiCode, setAiCode] = useState("");
   const [type, setType] = useState("self");
 
@@ -36,7 +36,6 @@ export default function ProductCatalogManager() {
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterBrand, setFilterBrand] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
 
   // Bulk operation file states
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -77,33 +76,27 @@ export default function ProductCatalogManager() {
     return Array.from(brandsSet);
   }, [products]);
 
-  const uniqueCategoriesCount = useMemo(() => {
-    const cats = new Set<string>();
+  const uniqueCategories = useMemo(() => {
+    const catsSet = new Set<string>();
     products.forEach(p => {
-      if (p.category) cats.add(p.category.trim());
+      if (p.category) catsSet.add(p.category.trim());
     });
-    return cats.size;
+    return Array.from(catsSet);
   }, [products]);
+
+  const uniqueCategoriesCount = useMemo(() => {
+    return uniqueCategories.length;
+  }, [uniqueCategories]);
 
   const aiCodeCount = useMemo(() => {
     return products.filter(p => p.ai_code && p.ai_code.trim() !== "").length;
   }, [products]);
 
-  // Client-Side Simulated stock levels and price mapping
+  // Process products for UI
   const items = useMemo(() => {
     return products.map(p => {
-      // Deterministic prices and stock from product ID
-      const price = ((p.id * 1.49) % 12 + 1.49).toFixed(2);
-      const stock = (p.id * 13) % 180;
-      let status: "in-stock" | "low-stock" | "out-of-stock" = "in-stock";
-      if (stock === 0) status = "out-of-stock";
-      else if (stock < 15) status = "low-stock";
-
       return {
         ...p,
-        price: `$${price}`,
-        stock,
-        status,
         updatedAt: new Date(p.created_at).toLocaleDateString(undefined, {
           month: 'short',
           day: 'numeric',
@@ -124,18 +117,17 @@ export default function ProductCatalogManager() {
 
       const matchesCategory = filterCategory === "all" || item.category === filterCategory;
       const matchesBrand = filterBrand === "all" || item.brand === filterBrand;
-      const matchesStatus = filterStatus === "all" || item.status === filterStatus;
 
-      return matchesQuery && matchesCategory && matchesBrand && matchesStatus;
+      return matchesQuery && matchesCategory && matchesBrand;
     });
-  }, [items, query, filterCategory, filterBrand, filterStatus, getProductCodeName]);
+  }, [items, query, filterCategory, filterBrand, getProductCodeName]);
 
   const resetForm = () => {
     setEditId(null);
     setProductName("");
     setProductCodeId("");
     setBrand("");
-    setCategory("Beverages");
+    setCategory("");
     setAiCode("");
     setType("self");
     setShowForm(false);
@@ -178,7 +170,7 @@ export default function ProductCatalogManager() {
     setProductName(p.product_name);
     setProductCodeId(p.product_code_id);
     setBrand(p.brand || "");
-    setCategory(p.category || "Beverages");
+    setCategory(p.category || "");
     setAiCode(p.ai_code || "");
     setType(p.type || "self");
     setShowForm(true);
@@ -215,7 +207,7 @@ export default function ProductCatalogManager() {
   // CSV Exporter
   const handleExport = () => {
     if (products.length === 0) return;
-    const headers = ["ID", "Product Name", "SKU Code ID", "SKU Code Map", "Brand", "Category", "AI Identifier", "Type", "Price", "Stock"];
+    const headers = ["ID", "Product Name", "SKU Code ID", "SKU Code Map", "Brand", "Category", "AI Identifier", "Type", "Last Updated"];
     const rows = filteredItems.map(p => [
       p.id,
       p.product_name,
@@ -225,8 +217,7 @@ export default function ProductCatalogManager() {
       p.category || "",
       p.ai_code || "",
       p.type || "",
-      p.price,
-      p.stock
+      p.updatedAt
     ]);
     
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -244,9 +235,23 @@ export default function ProductCatalogManager() {
   return (
     <div className="stack" style={{ gap: "2rem" }}>
       {error && (
-        <div className="error-box">
-          <span className="error-text"><strong>Error:</strong> {error}</span>
-          <button type="button" className="small button-secondary" onClick={() => setError(null)}>Dismiss</button>
+        <div className="modal-overlay">
+          <div className="modal-content error-modal animate-slide-in">
+            <div className="modal-header">
+              <div className="error-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h3>Action Failed</h3>
+            </div>
+            <div className="modal-body">
+              <p>{error}</p>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="button-danger" onClick={() => setError(null)}>
+                Dismiss
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -307,14 +312,9 @@ export default function ProductCatalogManager() {
               style={{ borderRadius: "99px", padding: "0.5rem 0.85rem", fontSize: "0.82rem", border: "1px solid var(--border)" }}
             >
               <option value="all">All Categories</option>
-              <option value="Beverages">Beverages</option>
-              <option value="Snacks">Snacks</option>
-              <option value="Dairy">Dairy</option>
-              <option value="Personal Care">Personal Care</option>
-              <option value="Home Care">Home Care</option>
-              <option value="Packaged Food">Packaged Food</option>
-              <option value="Confectionery">Confectionery</option>
-              <option value="Other">Other</option>
+              {uniqueCategories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
 
             <select 
@@ -326,17 +326,6 @@ export default function ProductCatalogManager() {
               {uniqueBrands.map((b) => (
                 <option key={b} value={b}>{b}</option>
               ))}
-            </select>
-
-            <select 
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ borderRadius: "99px", padding: "0.5rem 0.85rem", fontSize: "0.82rem", border: "1px solid var(--border)" }}
-            >
-              <option value="all">All Stock Status</option>
-              <option value="in-stock">In Stock</option>
-              <option value="low-stock">Low Stock</option>
-              <option value="out-of-stock">Out of Stock</option>
             </select>
           </div>
 
@@ -400,16 +389,11 @@ export default function ProductCatalogManager() {
 
               <label className="stack" style={{ gap: "0.35rem" }}>
                 <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Category</span>
-                <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                  <option value="Beverages">Beverages</option>
-                  <option value="Snacks">Snacks</option>
-                  <option value="Dairy">Dairy</option>
-                  <option value="Personal Care">Personal Care</option>
-                  <option value="Home Care">Home Care</option>
-                  <option value="Packaged Food">Packaged Food</option>
-                  <option value="Confectionery">Confectionery</option>
-                  <option value="Other">Other</option>
-                </select>
+                <input 
+                  value={category} 
+                  onChange={(e) => setCategory(e.target.value)} 
+                  placeholder="e.g. Beverages"
+                />
               </label>
 
               <label className="stack" style={{ gap: "0.35rem" }}>
@@ -460,11 +444,11 @@ export default function ProductCatalogManager() {
             <table style={{ margin: 0, border: "none" }}>
               <thead>
                 <tr>
-                  <th style={{ paddingLeft: "1.5rem" }}>Product</th>
+                  <th style={{ paddingLeft: "1.5rem" }}>Product Name</th>
+                  <th>Brand</th>
                   <th>Category</th>
+                  <th>AI Code</th>
                   <th>SKU Map</th>
-                  <th>Price</th>
-                  <th>Stock Level</th>
                   <th>Last Updated</th>
                   <th style={{ textAlign: "right", paddingRight: "1.5rem" }}>Actions</th>
                 </tr>
@@ -490,32 +474,25 @@ export default function ProductCatalogManager() {
                           <div>
                             <strong>{p.product_name}</strong>
                             <div className="subtle" style={{ fontSize: "0.72rem" }}>
-                              Brand: {p.brand || "Generic"} | ID: {p.id}
+                              ID: {p.id}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td>{p.category || "Other"}</td>
+                      <td>{p.brand || "-"}</td>
+                      <td>{p.category || "-"}</td>
+                      <td>
+                        {p.ai_code ? (
+                          <code style={{ background: "var(--surface)", padding: "0.2rem 0.4rem", borderRadius: "4px", fontSize: "0.75rem" }}>
+                            {p.ai_code}
+                          </code>
+                        ) : (
+                          <span className="subtle">-</span>
+                        )}
+                      </td>
                       <td>
                         <span className="chip processing" style={{ fontSize: "0.7rem", fontWeight: 700 }}>
                           {getProductCodeName(p.product_code_id)}
-                        </span>
-                      </td>
-                      <td>
-                        <strong style={{ color: "var(--text-primary)" }}>{p.price}</strong>
-                      </td>
-                      <td>
-                        <span 
-                          className={`chip ${
-                            p.status === "in-stock" ? "completed" :
-                            p.status === "low-stock" ? "warning" : "failed"
-                          }`}
-                          style={{ fontSize: "0.7rem", fontWeight: 700 }}
-                        >
-                          {p.stock} units ({
-                            p.status === "in-stock" ? "In Stock" :
-                            p.status === "low-stock" ? "Low Stock" : "Out of Stock"
-                          })
                         </span>
                       </td>
                       <td>{p.updatedAt}</td>

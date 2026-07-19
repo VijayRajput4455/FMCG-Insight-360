@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+import tempfile
 import threading
 import time
 
@@ -9,6 +11,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.logger import setup_logging
 from app.services.audit_service import process_existing_audit
+from app.services.minio_service import get_minio_service
 from app.services.rabbitmq_service import get_rabbitmq_client
 
 
@@ -68,6 +71,22 @@ def _publish_failed(payload: dict, error_message: str):
 	)
 
 
+def _resolve_input_reference(payload: dict) -> str | None:
+	return payload.get("input_object_key") or payload.get("image_path")
+
+
+def _materialize_input_image(input_reference: str) -> tuple[str, str | None]:
+	if not settings.MINIO_ENABLED:
+		return input_reference, None
+
+	file_suffix = os.path.splitext(input_reference)[1] or ".jpg"
+	with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as temp_file:
+		temp_path = temp_file.name
+
+	get_minio_service().download_to_file(settings.MINIO_INPUT_BUCKET, input_reference, temp_path)
+	return temp_path, input_reference
+
+
 def _handle_message(ch, method, properties, body: bytes):
 	try:
 		payload = json.loads(body.decode("utf-8"))
@@ -78,24 +97,30 @@ def _handle_message(ch, method, properties, body: bytes):
 
 	audit_id = payload.get("audit_id")
 	product_code_id = payload.get("product_code_id")
-	image_path = payload.get("image_path")
+	input_reference = _resolve_input_reference(payload)
 
-	if not audit_id or not product_code_id or not image_path:
+	if not audit_id or not product_code_id or not input_reference:
 		logger.error("Missing required job fields: %s", payload)
 		ch.basic_ack(delivery_tag=method.delivery_tag)
 		return
 
 	retry_count = int(payload.get("retry_count", 0))
 	db = SessionLocal()
+	temp_image_path = None
+	input_object_key = str(input_reference) if settings.MINIO_ENABLED else None
 	try:
+		image_path, _ = _materialize_input_image(str(input_reference))
+		temp_image_path = image_path if settings.MINIO_ENABLED else None
 		logger.info(
-			"Processing audit job audit_id=%s product_code_id=%s image_path=%s retry=%s",
+			"Processing audit job audit_id=%s product_code_id=%s input_reference=%s retry=%s",
 			audit_id,
 			product_code_id,
-			image_path,
+			input_reference,
 			retry_count,
 		)
 		process_existing_audit(db, int(audit_id), int(product_code_id), str(image_path))
+		if input_object_key:
+			get_minio_service().delete_object(settings.MINIO_INPUT_BUCKET, input_object_key)
 		ch.basic_ack(delivery_tag=method.delivery_tag)
 		logger.info("Completed audit job audit_id=%s", audit_id)
 	except Exception as exc:
@@ -111,6 +136,8 @@ def _handle_message(ch, method, properties, body: bytes):
 			)
 		else:
 			_publish_failed(payload, str(exc))
+			if input_object_key:
+				get_minio_service().delete_object(settings.MINIO_INPUT_BUCKET, input_object_key)
 			logger.error(
 				"Sent audit_id=%s to failed queue after %s retries",
 				audit_id,
@@ -118,6 +145,8 @@ def _handle_message(ch, method, properties, body: bytes):
 			)
 		ch.basic_ack(delivery_tag=method.delivery_tag)
 	finally:
+		if temp_image_path and os.path.exists(temp_image_path):
+			os.remove(temp_image_path)
 		db.close()
 
 

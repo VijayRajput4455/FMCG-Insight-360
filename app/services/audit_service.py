@@ -1,13 +1,16 @@
 import logging
 import os
+from datetime import datetime
 import uuid
 
 import cv2
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.repositories.audit_repo import create_audit, update_audit_status
 from app.services.model_service import get_models_for_product
 from app.services.inference_service import run_inference, merge_predictions
+from app.services.minio_service import get_minio_service
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +18,21 @@ logger = logging.getLogger(__name__)
 def _save_annotated_image(image, audit_id: int) -> str | None:
     if image is None:
         return None
+
+    if settings.MINIO_ENABLED:
+        success, encoded = cv2.imencode(".jpg", image)
+        if not success:
+            raise ValueError("Failed to encode annotated image")
+
+        stamp = datetime.utcnow()
+        object_key = f"outputs/audit/{stamp:%Y/%m/%d}/audit_{audit_id}_{uuid.uuid4().hex}.jpg"
+        get_minio_service().put_bytes(
+            settings.MINIO_OUTPUT_BUCKET,
+            object_key,
+            encoded.tobytes(),
+            "image/jpeg",
+        )
+        return object_key
 
     output_dir = os.getenv("AUDIT_OUTPUT_DIR", "outputs/audit")
     os.makedirs(output_dir, exist_ok=True)
@@ -67,7 +85,7 @@ def process_existing_audit(db: Session, audit_id: int, product_code_id: int, ima
             "detected_products": inference_result.get("detected_products", []),
             "products": inference_result.get("products", []),
             "detection_coordinates": inference_result.get("detection_coordinates", []),
-            "annotated_image_path": annotated_image_path,
+            "annotated_object_key": annotated_image_path,
         }
         logger.debug("audit_id=%s merged counts=%s total=%s", audit_id, merged, response_payload["total_product_count"])
 

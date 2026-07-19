@@ -58,6 +58,9 @@ class ModelService:
         if not model_path:
             return model_path
 
+        # Standardize path separators for cross-platform compatibility
+        model_path = model_path.replace("\\", "/")
+
         from app.core.config import settings
         base_dir = getattr(settings, "ML_MODEL_DIR", "ml_models")
 

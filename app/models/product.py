@@ -16,10 +16,10 @@ class Product(Base):
         index=True,
     )
 
-    product_name = Column(String(100), unique=True, nullable=False, index=True)
+    product_name = Column(String(100), nullable=False, index=True)
     brand = Column(String(100))
     category = Column(String(100))
-    ai_code = Column(String(50))
+    ai_code = Column(String(50), unique=True)
     type = Column(String(20))   # own / competitor
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

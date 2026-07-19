@@ -174,12 +174,12 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     if not product_code:
         raise HTTPException(status_code=400, detail="Invalid product_code_id")
 
-    existing = db.query(Product).filter(
-        Product.product_name == product.product_name
-    ).first()
-
-    if existing:
-        raise HTTPException(status_code=400, detail="Product already exists")
+    if product.ai_code:
+        existing = db.query(Product).filter(
+            Product.ai_code == product.ai_code
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="AI Code already exists")
 
     db_product = Product(**product.dict())
     db.add(db_product)
@@ -201,16 +201,26 @@ def create_products_bulk(products: list[ProductCreate], db: Session = Depends(ge
             product_code = db.query(ProductCode).filter(ProductCode.id == item.product_code_id).first()
             if not product_code:
                 raise HTTPException(status_code=400, detail=f"Invalid product_code_id for {item.product_name}")
-            existing = db.query(Product).filter(Product.product_name == item.product_name).first()
-            if existing:
-                skipped.append(item.product_name)
+            if item.ai_code:
+                existing = db.query(Product).filter(Product.ai_code == item.ai_code).first()
+                if existing:
+                    skipped.append(item.product_name)
         
         # Second pass: add only non-duplicates to session (not yet committed)
+        # Track seen ai_codes within the current bulk payload to avoid duplicates in the same request
+        seen_payload_ai_codes = set()
         for item in products:
-            if item.product_name not in skipped:
-                obj = Product(**item.dict())
-                db.add(obj)
-                created.append(obj)
+            # Skip if we already determined it should be skipped
+            if item.product_name in skipped:
+                continue
+            if item.ai_code:
+                if item.ai_code in seen_payload_ai_codes:
+                    skipped.append(item.product_name)
+                    continue
+                seen_payload_ai_codes.add(item.ai_code)
+            obj = Product(**item.dict())
+            db.add(obj)
+            created.append(obj)
         
         # Commit atomically - all products commit together or none at all
         db.commit()
@@ -274,26 +284,33 @@ async def create_products_bulk_upload(file: UploadFile = File(...), db: Session 
             detail=f"Invalid product_code_id values: {', '.join(map(str, missing_code_ids))}",
         )
 
-    seen_names: set[str] = set()
-    duplicate_names_in_file: set[str] = set()
+    seen_ai_codes: set[str] = set()
+    duplicate_ai_codes_in_file: set[str] = set()
     for payload in validated_payloads:
-        if payload.product_name in seen_names:
-            duplicate_names_in_file.add(payload.product_name)
-        else:
-            seen_names.add(payload.product_name)
+        if payload.ai_code:
+            if payload.ai_code in seen_ai_codes:
+                duplicate_ai_codes_in_file.add(payload.ai_code)
+            else:
+                seen_ai_codes.add(payload.ai_code)
 
-    existing_names = {
-        name
-        for (name,) in db.query(Product.product_name).filter(Product.product_name.in_(seen_names)).all()
+    existing_ai_codes = {
+        ai_code
+        for (ai_code,) in db.query(Product.ai_code).filter(Product.ai_code.in_(seen_ai_codes)).all()
     }
 
-    skipped_names = set(duplicate_names_in_file) | existing_names
+    skipped_ai_codes = set(duplicate_ai_codes_in_file) | existing_ai_codes
+    skipped_names = []
     created: list[Product] = []
 
     try:
+        # Avoid duplicate insertions in the same transaction
+        seen_inserted_ai_codes = set()
         for payload in validated_payloads:
-            if payload.product_name in skipped_names:
+            if payload.ai_code and (payload.ai_code in skipped_ai_codes or payload.ai_code in seen_inserted_ai_codes):
+                skipped_names.append(payload.product_name)
                 continue
+            if payload.ai_code:
+                seen_inserted_ai_codes.add(payload.ai_code)
 
             obj = Product(**payload.model_dump())
             db.add(obj)
@@ -413,10 +430,10 @@ def update_product_by_name(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    if product_update.product_name and product_update.product_name != product_name:
-        exists = db.query(Product).filter(Product.product_name == product_update.product_name).first()
+    if product_update.ai_code and product_update.ai_code != product.ai_code:
+        exists = db.query(Product).filter(Product.ai_code == product_update.ai_code).first()
         if exists:
-            raise HTTPException(status_code=400, detail="Product name already exists")
+            raise HTTPException(status_code=400, detail="AI Code already exists")
 
     if product_update.product_code_id is not None:
         product_code = db.query(ProductCode).filter(ProductCode.id == product_update.product_code_id).first()
@@ -444,13 +461,13 @@ def update_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    if product_update.product_name:
+    if product_update.ai_code:
         exists = db.query(Product).filter(
-            Product.product_name == product_update.product_name,
+            Product.ai_code == product_update.ai_code,
             Product.id != product_id
         ).first()
         if exists:
-            raise HTTPException(status_code=400, detail="Product name already exists")
+            raise HTTPException(status_code=400, detail="AI Code already exists")
 
     if product_update.product_code_id is not None:
         product_code = db.query(ProductCode).filter(ProductCode.id == product_update.product_code_id).first()

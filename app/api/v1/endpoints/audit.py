@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from datetime import datetime
 import uuid
 from urllib.parse import urlparse
 
@@ -16,6 +17,7 @@ from app.core.database import get_db
 from app.models.audit_result import AuditResult
 from app.models.product_code import ProductCode
 from app.repositories.audit_repo import create_audit, update_audit_status
+from app.services.minio_service import get_minio_service
 from app.services.rabbitmq_service import get_rabbitmq_client
 from app.services.redis_cache import get_redis_cache
 from app.core.metrics import increment_audit_request, increment_rate_limit
@@ -68,6 +70,21 @@ def _download_image(image_url: str):
 
 
 def _save_input_image(image: np.ndarray) -> str:
+	if settings.MINIO_ENABLED:
+		success, encoded = cv2.imencode(".jpg", image)
+		if not success:
+			raise ValueError("Failed to encode input image")
+
+		stamp = datetime.utcnow()
+		object_key = f"uploads/tmp/{stamp:%Y/%m/%d}/audit_input_{uuid.uuid4().hex}.jpg"
+		get_minio_service().put_bytes(
+			settings.MINIO_INPUT_BUCKET,
+			object_key,
+			encoded.tobytes(),
+			"image/jpeg",
+		)
+		return object_key
+
 	input_dir = os.getenv("AUDIT_INPUT_DIR", "uploads/audit")
 	os.makedirs(input_dir, exist_ok=True)
 
@@ -77,11 +94,13 @@ def _save_input_image(image: np.ndarray) -> str:
 	return image_path.replace('\\', '/')
 
 
-def _annotated_image_url(request: Request, local_path: str | None) -> str:
-	"""Convert a local outputs/audit/... path to a /api/v1/audit/image/{filename} URL."""
-	if not local_path:
+def _annotated_image_url(request: Request | WebSocket, object_key: str | None) -> str:
+	if not object_key:
 		return ""
-	filename = os.path.basename(local_path)
+	if settings.MINIO_ENABLED:
+		return get_minio_service().presigned_get_url(settings.MINIO_OUTPUT_BUCKET, object_key)
+
+	filename = os.path.basename(object_key)
 	base = str(request.base_url).rstrip("/")
 	return f"{base}/api/v1/audit/image/{filename}"
 
@@ -156,10 +175,10 @@ def _build_audit_status_response(audit: AuditResult, request: Request) -> dict:
 
 	if audit.result_json:
 		result_json = dict(audit.result_json)
-		annotated_path = result_json.get("annotated_image_path")
-		if annotated_path:
-			result_json["product_image_url"] = _annotated_image_url(request, annotated_path)
-			result_json["image_name"] = os.path.basename(annotated_path)
+		annotated_key = result_json.get("annotated_object_key") or result_json.get("annotated_image_path")
+		if annotated_key:
+			result_json["product_image_url"] = _annotated_image_url(request, annotated_key)
+			result_json["image_name"] = os.path.basename(annotated_key)
 		response["result_json"] = result_json
 
 	return response
@@ -189,7 +208,7 @@ def _queue_audit_pipeline(db: Session, product_code: str, image: np.ndarray, sou
 		payload = {
 			"audit_id": audit.id,
 			"product_code_id": product_code_id,
-			"image_path": input_image_path,
+			"input_object_key": input_image_path,
 		}
 		get_rabbitmq_client().publish(settings.RABBITMQ_AUDIT_QUEUE, payload)
 		increment_audit_request(product_code, "success")
@@ -440,11 +459,10 @@ async def audit_websocket(
 
 				if audit.result_json:
 					result_json = dict(audit.result_json)
-					annotated_path = result_json.get("annotated_image_path")
-					if annotated_path:
-						filename = os.path.basename(annotated_path)
-						result_json["image_name"] = filename
-						result_json["product_image_url"] = f"/api/v1/audit/image/{filename}"
+					annotated_key = result_json.get("annotated_object_key") or result_json.get("annotated_image_path")
+					if annotated_key:
+						result_json["image_name"] = os.path.basename(annotated_key)
+						result_json["product_image_url"] = _annotated_image_url(websocket, annotated_key)
 					response["result_json"] = result_json
 
 				await websocket.send_json(response)
