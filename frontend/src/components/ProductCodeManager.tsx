@@ -236,6 +236,27 @@ export default function ProductCodeManager() {
 
   return (
     <div className="stack" style={{ gap: "2rem" }}>
+      {error && (
+        <div className="modal-overlay">
+          <div className="modal-content error-modal animate-slide-in">
+            <div className="modal-header">
+              <div className="error-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h3>Action Failed</h3>
+            </div>
+            <div className="modal-body">
+              <p>{error}</p>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="button-danger" onClick={() => setError(null)}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Large Hero Header Card (no buttons) */}
       <section className="card" style={{
         background: "linear-gradient(135deg, var(--accent-light) 0%, var(--bg) 100%)",
@@ -293,7 +314,6 @@ export default function ProductCodeManager() {
             </span>
           </div>
 
-          {error && <ErrorBox message={error} onRetry={() => void loadProductCodes()} />}
           {successMessage && <div className="success-box">{successMessage}</div>}
 
           <form className="stack" style={{ gap: "1.25rem", marginTop: "1rem" }} onSubmit={handleSubmit}>

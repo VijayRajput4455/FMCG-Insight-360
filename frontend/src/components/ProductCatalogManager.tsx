@@ -36,6 +36,7 @@ export default function ProductCatalogManager() {
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterBrand, setFilterBrand] = useState("all");
+  const [filterSku, setFilterSku] = useState("all");
 
   // Bulk operation file states
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -88,6 +89,19 @@ export default function ProductCatalogManager() {
     return uniqueCategories.length;
   }, [uniqueCategories]);
 
+  const uniqueSkuCodes = useMemo(() => {
+    const skuIdsSet = new Set<number>();
+    products.forEach(p => {
+      skuIdsSet.add(p.product_code_id);
+    });
+    return Array.from(skuIdsSet).map(id => {
+      return {
+        id,
+        codeName: getProductCodeName(id)
+      };
+    }).sort((a, b) => a.codeName.localeCompare(b.codeName));
+  }, [products, getProductCodeName]);
+
   const aiCodeCount = useMemo(() => {
     return products.filter(p => p.ai_code && p.ai_code.trim() !== "").length;
   }, [products]);
@@ -113,14 +127,17 @@ export default function ProductCatalogManager() {
       const matchesQuery = 
         item.product_name.toLowerCase().includes(query.toLowerCase()) ||
         (item.brand || "").toLowerCase().includes(query.toLowerCase()) ||
+        (item.category || "").toLowerCase().includes(query.toLowerCase()) ||
+        (item.ai_code || "").toLowerCase().includes(query.toLowerCase()) ||
         codeName.toLowerCase().includes(query.toLowerCase());
 
       const matchesCategory = filterCategory === "all" || item.category === filterCategory;
       const matchesBrand = filterBrand === "all" || item.brand === filterBrand;
+      const matchesSku = filterSku === "all" || String(item.product_code_id) === filterSku;
 
-      return matchesQuery && matchesCategory && matchesBrand;
+      return matchesQuery && matchesCategory && matchesBrand && matchesSku;
     });
-  }, [items, query, filterCategory, filterBrand, getProductCodeName]);
+  }, [items, query, filterCategory, filterBrand, filterSku, getProductCodeName]);
 
   const resetForm = () => {
     setEditId(null);
@@ -130,6 +147,7 @@ export default function ProductCatalogManager() {
     setCategory("");
     setAiCode("");
     setType("self");
+    setFilterSku("all");
     setShowForm(false);
   };
 
@@ -325,6 +343,17 @@ export default function ProductCatalogManager() {
               <option value="all">All Brands</option>
               {uniqueBrands.map((b) => (
                 <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+
+            <select 
+              value={filterSku}
+              onChange={(e) => setFilterSku(e.target.value)}
+              style={{ borderRadius: "99px", padding: "0.5rem 0.85rem", fontSize: "0.82rem", border: "1px solid var(--border)" }}
+            >
+              <option value="all">All SKU Codes</option>
+              {uniqueSkuCodes.map((s) => (
+                <option key={s.id} value={String(s.id)}>{s.codeName}</option>
               ))}
             </select>
           </div>
