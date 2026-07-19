@@ -21,6 +21,7 @@ class Product(Base):
     category = Column(String(100))
     ai_code = Column(String(50), unique=True)
     type = Column(String(20))   # own / competitor
+    status = Column(String(20), default="active", server_default="active", nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)

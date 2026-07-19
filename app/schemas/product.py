@@ -30,6 +30,7 @@ class ProductCreate(BaseModel):
     category: Optional[str] = Field(None, max_length=100)
     ai_code: Optional[str] = Field(None, max_length=50)
     type: Optional[ProductType] = None
+    status: Optional[str] = Field("active", max_length=20)
 
     @field_validator("type", mode="before")
     @classmethod
@@ -44,6 +45,7 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = Field(None, max_length=100)
     ai_code: Optional[str] = Field(None, max_length=50)
     type: Optional[ProductType] = None
+    status: Optional[str] = Field(None, max_length=20)
 
     @field_validator("type", mode="before")
     @classmethod
@@ -59,6 +61,7 @@ class ProductResponse(BaseModel):
     category: Optional[str]
     ai_code: Optional[str]
     type: Optional[ProductType]
+    status: str
     created_at: datetime
 
     @field_validator("type", mode="before")

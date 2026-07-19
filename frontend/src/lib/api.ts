@@ -233,6 +233,7 @@ export type Product = {
   category?: string | null;
   ai_code?: string | null;
   type?: string | null;
+  status: string;
   created_at: string;
 };
 
@@ -243,6 +244,7 @@ export type ProductPayload = {
   category?: string;
   ai_code?: string;
   type?: string;
+  status?: string;
 };
 
 export type BulkUploadResponse = {

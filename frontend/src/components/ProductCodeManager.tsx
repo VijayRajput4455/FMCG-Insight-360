@@ -33,6 +33,7 @@ export default function ProductCodeManager() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [deleteProductCode, setDeleteProductCode] = useState<string | null>(null);
 
   // Filters & Search
   const [query, setQuery] = useState("");
@@ -62,6 +63,15 @@ export default function ProductCodeManager() {
   useEffect(() => {
     void loadProductCodes();
   }, []);
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   // Parse raw descriptions (JSON check)
   const items: ParsedProductCode[] = useMemo(() => {
@@ -211,11 +221,11 @@ export default function ProductCodeManager() {
     }
   }
 
-  async function handleDelete(productCode: string) {
-    if (!window.confirm(`Are you sure you want to delete SKU code "${productCode}"?`)) {
-      return;
-    }
+  function handleDelete(productCode: string) {
+    setDeleteProductCode(productCode);
+  }
 
+  async function executeDelete(productCode: string) {
     setSaving(true);
     setError(null);
     setSuccessMessage(null);
@@ -236,6 +246,34 @@ export default function ProductCodeManager() {
 
   return (
     <div className="stack" style={{ gap: "2rem" }}>
+      {deleteProductCode !== null && (
+        <div className="modal-overlay">
+          <div className="modal-content error-modal animate-slide-in">
+            <div className="modal-header">
+              <div className="error-icon-wrapper" style={{ background: "rgba(229, 57, 53, 0.1)", color: "#E53935" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h3>Confirm Delete</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete SKU code &quot;{deleteProductCode}&quot;?</p>
+            </div>
+            <div className="modal-footer" style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button type="button" className="button-secondary" onClick={() => setDeleteProductCode(null)}>
+                Cancel
+              </button>
+              <button type="button" className="button-danger" style={{ background: "#ef4444", color: "#ffffff" }} onClick={async () => {
+                const codeToDelete = deleteProductCode;
+                setDeleteProductCode(null);
+                await executeDelete(codeToDelete);
+              }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="modal-overlay">
           <div className="modal-content error-modal animate-slide-in">
@@ -253,6 +291,20 @@ export default function ProductCodeManager() {
                 Dismiss
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="toast-container">
+          <div className="toast show">
+            <div className="toast-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div className="toast-message">{successMessage}</div>
+            <button type="button" className="toast-close-btn" onClick={() => setSuccessMessage(null)}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
         </div>
       )}
@@ -314,7 +366,7 @@ export default function ProductCodeManager() {
             </span>
           </div>
 
-          {successMessage && <div className="success-box">{successMessage}</div>}
+
 
           <form className="stack" style={{ gap: "1.25rem", marginTop: "1rem" }} onSubmit={handleSubmit}>
             <label>

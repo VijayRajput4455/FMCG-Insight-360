@@ -21,13 +21,25 @@ export default function DashboardPage() {
   const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [timeRange, setTimeRange] = useState<"week" | "month">("week");
 
   const hoveredDateStr = useMemo(() => {
     if (hoveredIdx === null) return "";
-    const d = new Date();
-    d.setDate(new Date().getDate() - (6 - hoveredIdx));
-    return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-  }, [hoveredIdx]);
+    const isMonth = timeRange === "month";
+    const today = new Date();
+    if (isMonth) {
+      const d = new Date();
+      d.setDate(today.getDate() - (29 - hoveredIdx));
+      return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    } else {
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(today.setDate(diff));
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + hoveredIdx);
+      return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    }
+  }, [hoveredIdx, timeRange]);
 
   const statusStats = useMemo(() => {
     const total = allDbLogs.length + localItems.length;
@@ -260,34 +272,64 @@ export default function DashboardPage() {
 
   // 2. Weekly Area Line Chart coordinates (Starts at 0, no default curves)
   const trendChartData = useMemo(() => {
-    const counts = [0, 0, 0, 0, 0, 0, 0];
-    const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const isMonth = timeRange === "month";
+    const numPoints = isMonth ? 30 : 7;
+    const counts = Array(numPoints).fill(0);
+    const labels: string[] = [];
     const today = new Date();
     
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(today.getDate() - i);
-      const dateStr = d.toDateString();
-      labels[6 - i] = d.toLocaleDateString(undefined, { weekday: 'short' });
+    if (isMonth) {
+      // Last 30 days
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(today.getDate() - i);
+        const dateStr = d.toDateString();
+        
+        // Show labels for index multiples of 5 to avoid overlap
+        if (i % 5 === 0 || i === 29) {
+          labels[29 - i] = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        } else {
+          labels[29 - i] = "";
+        }
+        
+        counts[29 - i] = allDbLogs.filter(
+          (item) => new Date(item.created_at).toDateString() === dateStr
+        ).length;
+      }
+    } else {
+      // Current Week (Monday to Sunday)
+      const day = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(today.setDate(diff));
       
-      const matchedCount = allDbLogs.filter(
-        (item) => new Date(item.created_at).toDateString() === dateStr
-      ).length;
-      counts[6 - i] = matchedCount;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const dateStr = d.toDateString();
+        labels[i] = d.toLocaleDateString(undefined, { weekday: 'short' });
+        
+        counts[i] = allDbLogs.filter(
+          (item) => new Date(item.created_at).toDateString() === dateStr
+        ).length;
+      }
     }
 
-    const max = Math.max(...counts, 50); // Default to niceMax of at least 50
-    let niceMax = 50;
-    if (max <= 50) niceMax = 50;
+    const max = Math.max(...counts, 10); // Nice max
+    let niceMax = 10;
+    if (max <= 10) niceMax = 10;
+    else if (max <= 50) niceMax = 50;
     else if (max <= 100) niceMax = 100;
     else niceMax = Math.ceil(max / 50) * 50;
 
     const step = niceMax / 5;
     const yAxisLabels = Array.from({ length: 6 }, (_, i) => Math.round(niceMax - i * step));
 
+    // Map points to SVG coordinates (viewBox 0 -10 1000 250)
+    // padding-left: 60, padding-right: 60 (width 880)
+    // padding-top: 30, padding-bottom: 200 (height 170)
     const points = counts.map((count, idx) => {
-      const x = 40 + idx * 56.6; // Width is 340, starting at x=40
-      const y = 170 - (count / niceMax) * 150; // Height is 150, starting at y=20
+      const x = 60 + idx * (880 / (numPoints - 1));
+      const y = 200 - (count / niceMax) * 170;
       return { x, y, count };
     });
 
@@ -296,11 +338,11 @@ export default function DashboardPage() {
     }, "");
 
     const fillD = points.length > 0
-      ? `${pathD} L ${points[points.length - 1].x} 170 L ${points[0].x} 170 Z`
+      ? `${pathD} L ${points[points.length - 1].x} 200 L ${points[0].x} 200 Z`
       : "";
 
     return { points, pathD, fillD, labels, counts, niceMax, yAxisLabels };
-  }, [allDbLogs]);
+  }, [allDbLogs, timeRange]);
 
   // 3. Top Model Requests Received (dynamic from registered models)
   const modelRequests = useMemo(() => {
@@ -487,23 +529,27 @@ export default function DashboardPage() {
         <section className="card stack" style={{ borderLeft: "4px solid #E53935" }}>
           <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "1rem" }}>
             <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Audits Over Time</h2>
-            <select style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "6px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer" }}>
-              <option>This Week</option>
-              <option>This Month</option>
+            <select 
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as "week" | "month")}
+              style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "6px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer" }}
+            >
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
             </select>
           </div>
 
           <div style={{ position: "relative", width: "100%", height: "230px" }}>
-            <svg viewBox="0 -35 400 240" style={{ width: "98%", height: "100%" }}>
+            <svg viewBox="0 -10 1000 250" style={{ width: "100%", height: "100%" }}>
               {/* Horizontal Grid Lines & Y Axis Labels */}
               {trendChartData.yAxisLabels.map((val, idx) => {
-                const y = 20 + idx * 30; // Spaced between 20 and 170
+                const y = 30 + idx * 34; // Spaced nicely from 30 to 200
                 return (
                   <g key={idx}>
-                    {/* Grid line */}
-                    <line x1="35" y1={y} x2="385" y2={y} stroke="var(--border)" strokeWidth="0.8" opacity="0.3" />
+                    {/* Grid line spanning almost the full 1000px */}
+                    <line x1="50" y1={y} x2="950" y2={y} stroke="var(--border)" strokeWidth="0.8" opacity="0.3" />
                     {/* Y Axis Label */}
-                    <text x="25" y={y + 3} textAnchor="end" fill="var(--text-secondary)" fontSize="8" fontWeight="600">
+                    <text x="40" y={y + 3} textAnchor="end" fill="var(--text-secondary)" fontSize="10" fontWeight="600">
                       {val}
                     </text>
                   </g>
@@ -526,7 +572,7 @@ export default function DashboardPage() {
                   <circle
                     cx={pt.x}
                     cy={pt.y}
-                    r="4"
+                    r="4.5"
                     fill="#ffffff"
                     stroke="#2E7D32"
                     strokeWidth="2.5"
@@ -542,42 +588,35 @@ export default function DashboardPage() {
                 <g>
                   {/* Tooltip Box */}
                   <rect
-                    x={trendChartData.points[hoveredIdx].x - 45}
-                    y={trendChartData.points[hoveredIdx].y - 45}
-                    width="90"
-                    height="35"
-                    rx="6"
+                    x={trendChartData.points[hoveredIdx].x - 60}
+                    y={trendChartData.points[hoveredIdx].y - 50}
+                    width="120"
+                    height="42"
+                    rx="8"
                     fill="#FFFFFF"
-                    stroke="var(--border)"
-                    strokeWidth="1"
-                    filter="drop-shadow(0 4px 6px rgba(0,0,0,0.08))"
+                    stroke="#2E7D32"
+                    strokeWidth="1.5"
+                    style={{ filter: "drop-shadow(0 8px 16px rgba(0,0,0,0.12))" }}
                   />
                   {/* Date text */}
                   <text
                     x={trendChartData.points[hoveredIdx].x}
-                    y={trendChartData.points[hoveredIdx].y - 34}
+                    y={trendChartData.points[hoveredIdx].y - 36}
                     textAnchor="middle"
                     fill="var(--text-secondary)"
-                    fontSize="7"
+                    fontSize="9"
                     fontWeight="600"
                   >
                     {hoveredDateStr}
                   </text>
-                  {/* Value Indicator Dot */}
-                  <circle
-                    cx={trendChartData.points[hoveredIdx].x - 24}
-                    y={trendChartData.points[hoveredIdx].y - 20}
-                    r="2.5"
-                    fill="#2E7D32"
-                  />
                   {/* Value Text */}
                   <text
-                    x={trendChartData.points[hoveredIdx].x + 4}
-                    y={trendChartData.points[hoveredIdx].y - 17}
+                    x={trendChartData.points[hoveredIdx].x}
+                    y={trendChartData.points[hoveredIdx].y - 18}
                     textAnchor="middle"
                     fill="var(--text-primary)"
-                    fontSize="8"
-                    fontWeight="700"
+                    fontSize="10"
+                    fontWeight="800"
                   >
                     {trendChartData.points[hoveredIdx].count} Audits
                   </text>
@@ -585,11 +624,14 @@ export default function DashboardPage() {
               )}
 
               {/* X Labels */}
-              {trendChartData.labels.map((lbl, idx) => (
-                <text key={idx} x={40 + idx * 56.6} y="195" textAnchor="middle" fill="var(--text-secondary)" fontSize="9" fontWeight="600">
-                  {lbl}
-                </text>
-              ))}
+              {trendChartData.labels.map((lbl, idx) => {
+                if (!lbl) return null; // Skip empty labels to avoid overlap
+                return (
+                  <text key={idx} x={60 + idx * (880 / (trendChartData.labels.length - 1))} y="225" textAnchor="middle" fill="var(--text-secondary)" fontSize="10" fontWeight="600">
+                    {lbl}
+                  </text>
+                );
+              })}
 
               <defs>
                 <linearGradient id="chart-grad-dashboard-v6" x1="0" y1="0" x2="0" y2="1">
@@ -606,70 +648,104 @@ export default function DashboardPage() {
           <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "1rem" }}>
             <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Audits by Status</h2>
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-around", height: "230px" }}>
-            {/* Donut Chart */}
-            <div style={{ transform: "rotate(-90deg)", width: "140px", height: "140px" }}>
-              <svg viewBox="0 0 80 80" style={{ width: "100%", height: "100%" }}>
-                {/* Background circle */}
-                <circle cx="40" cy="40" r="30" fill="transparent" stroke="var(--bg)" strokeWidth="8" />
-                
-                {/* Completed Segment */}
-                {statusStats.completedPct > 0 && (
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="30"
-                    fill="transparent"
-                    stroke="#2E7D32"
-                    strokeWidth="8"
-                    strokeDasharray={`${(statusStats.completedPct / 100) * 188.5} 188.5`}
-                    strokeDashoffset="0"
-                  />
-                )}
-                
-                {/* Pending Segment */}
-                {statusStats.pendingPct > 0 && (
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="30"
-                    fill="transparent"
-                    stroke="#FFA726"
-                    strokeWidth="8"
-                    strokeDasharray={`${(statusStats.pendingPct / 100) * 188.5} 188.5`}
-                    strokeDashoffset={`-${(statusStats.completedPct / 100) * 188.5}`}
-                  />
-                )}
-                
-                {/* Failed Segment */}
-                {statusStats.failedPct > 0 && (
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="30"
-                    fill="transparent"
-                    stroke="#D32F2F"
-                    strokeWidth="8"
-                    strokeDasharray={`${(statusStats.failedPct / 100) * 188.5} 188.5`}
-                    strokeDashoffset={`-${((statusStats.completedPct + statusStats.pendingPct) / 100) * 188.5}`}
-                  />
-                )}
-              </svg>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-around", height: "230px", flexWrap: "wrap", gap: "1rem" }}>
+            {/* Centered Donut Container */}
+            <div style={{ position: "relative", width: "140px", height: "140px", flexShrink: 0 }}>
+              {/* Donut Chart SVG */}
+              <div style={{ transform: "rotate(-90deg)", width: "100%", height: "100%" }}>
+                <svg viewBox="0 0 80 80" style={{ width: "100%", height: "100%" }}>
+                  {/* Background track */}
+                  <circle cx="40" cy="40" r="30" fill="transparent" stroke="var(--bg)" strokeWidth="7.5" />
+                  
+                  {/* Completed Segment */}
+                  {statusStats.completedPct > 0 && (
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="30"
+                      fill="transparent"
+                      stroke="#43A047"
+                      strokeWidth="7.5"
+                      strokeDasharray={`${(statusStats.completedPct / 100) * 188.5} 188.5`}
+                      strokeDashoffset="0"
+                      strokeLinecap="round"
+                    />
+                  )}
+                  
+                  {/* Pending Segment */}
+                  {statusStats.pendingPct > 0 && (
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="30"
+                      fill="transparent"
+                      stroke="#FFA726"
+                      strokeWidth="7.5"
+                      strokeDasharray={`${(statusStats.pendingPct / 100) * 188.5} 188.5`}
+                      strokeDashoffset={`-${(statusStats.completedPct / 100) * 188.5}`}
+                      strokeLinecap="round"
+                    />
+                  )}
+                  
+                  {/* Failed Segment */}
+                  {statusStats.failedPct > 0 && (
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="30"
+                      fill="transparent"
+                      stroke="#E53935"
+                      strokeWidth="7.5"
+                      strokeDasharray={`${(statusStats.failedPct / 100) * 188.5} 188.5`}
+                      strokeDashoffset={`-${((statusStats.completedPct + statusStats.pendingPct) / 100) * 188.5}`}
+                      strokeLinecap="round"
+                    />
+                  )}
+                </svg>
+              </div>
+              
+              {/* Center Labels overlay */}
+              <div style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center"
+              }}>
+                <strong style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
+                  {allDbLogs.length + localItems.length}
+                </strong>
+                <span className="subtle" style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "2px" }}>
+                  Audits
+                </span>
+              </div>
             </div>
 
-            {/* Legend */}
-            <div className="stack" style={{ gap: "0.75rem", fontSize: "0.85rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#2E7D32" }} />
-                <span>Completed ({statusStats.completedPct}%)</span>
+            {/* Legend with counts */}
+            <div className="stack" style={{ gap: "0.85rem", fontSize: "0.85rem", minWidth: "160px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#43A047" }} />
+                  <span style={{ fontWeight: 600 }}>Completed</span>
+                </div>
+                <strong style={{ color: "var(--text-secondary)" }}>{statusStats.completedCount} ({statusStats.completedPct}%)</strong>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#FFA726" }} />
-                <span>In Progress ({statusStats.pendingPct}%)</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#FFA726" }} />
+                  <span style={{ fontWeight: 600 }}>Pending</span>
+                </div>
+                <strong style={{ color: "var(--text-secondary)" }}>{statusStats.pendingCount} ({statusStats.pendingPct}%)</strong>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#D32F2F" }} />
-                <span>Failed ({statusStats.failedPct}%)</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#E53935" }} />
+                  <span style={{ fontWeight: 600 }}>Failed / Issues</span>
+                </div>
+                <strong style={{ color: "var(--text-secondary)" }}>{statusStats.failedCount} ({statusStats.failedPct}%)</strong>
               </div>
             </div>
           </div>

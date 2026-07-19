@@ -31,12 +31,14 @@ export default function ProductCatalogManager() {
   const [category, setCategory] = useState("");
   const [aiCode, setAiCode] = useState("");
   const [type, setType] = useState("self");
+  const [status, setStatus] = useState("active");
 
   // Search & Filter state variables
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterBrand, setFilterBrand] = useState("all");
   const [filterSku, setFilterSku] = useState("all");
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   // Bulk operation file states
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -62,6 +64,15 @@ export default function ProductCatalogManager() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   const getProductCodeName = useCallback((codeId: number) => {
     const matched = productCodes.find((x) => x.id === codeId);
@@ -147,6 +158,7 @@ export default function ProductCatalogManager() {
     setCategory("");
     setAiCode("");
     setType("self");
+    setStatus("active");
     setFilterSku("all");
     setShowForm(false);
   };
@@ -165,6 +177,7 @@ export default function ProductCatalogManager() {
       category: category || undefined,
       ai_code: aiCode || undefined,
       type: type || undefined,
+      status: status,
     };
 
     try {
@@ -191,11 +204,15 @@ export default function ProductCatalogManager() {
     setCategory(p.category || "");
     setAiCode(p.ai_code || "");
     setType(p.type || "self");
+    setStatus(p.status || "active");
     setShowForm(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this product?")) return;
+  const handleDelete = (id: number) => {
+    setDeleteId(id);
+  };
+
+  const executeDelete = async (id: number) => {
     try {
       await deleteProduct(id);
       setSuccess("Product deleted successfully!");
@@ -203,6 +220,25 @@ export default function ProductCatalogManager() {
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete product");
+    }
+  };
+
+  const handleToggleStatus = async (p: Product) => {
+    const nextStatus = p.status === "active" ? "inactive" : "active";
+    try {
+      await updateProduct(p.id, {
+        product_name: p.product_name,
+        product_code_id: p.product_code_id,
+        brand: p.brand || undefined,
+        category: p.category || undefined,
+        ai_code: p.ai_code || undefined,
+        type: p.type || undefined,
+        status: nextStatus,
+      });
+      setSuccess(`Product "${p.product_name}" status updated to ${nextStatus}.`);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to toggle product status");
     }
   };
 
@@ -225,7 +261,7 @@ export default function ProductCatalogManager() {
   // CSV Exporter
   const handleExport = () => {
     if (products.length === 0) return;
-    const headers = ["ID", "Product Name", "SKU Code ID", "SKU Code Map", "Brand", "Category", "AI Identifier", "Type", "Last Updated"];
+    const headers = ["ID", "Product Name", "SKU Code ID", "SKU Code Map", "Brand", "Category", "AI Identifier", "Type", "Status", "Last Updated"];
     const rows = filteredItems.map(p => [
       p.id,
       p.product_name,
@@ -235,6 +271,7 @@ export default function ProductCatalogManager() {
       p.category || "",
       p.ai_code || "",
       p.type || "",
+      p.status || "active",
       p.updatedAt
     ]);
     
@@ -252,6 +289,34 @@ export default function ProductCatalogManager() {
 
   return (
     <div className="stack" style={{ gap: "2rem" }}>
+      {deleteId !== null && (
+        <div className="modal-overlay">
+          <div className="modal-content error-modal animate-slide-in">
+            <div className="modal-header">
+              <div className="error-icon-wrapper" style={{ background: "rgba(229, 57, 53, 0.1)", color: "#E53935" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h3>Confirm Delete</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete this product?</p>
+            </div>
+            <div className="modal-footer" style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button type="button" className="button-secondary" onClick={() => setDeleteId(null)}>
+                Cancel
+              </button>
+              <button type="button" className="button-danger" style={{ background: "#ef4444", color: "#ffffff" }} onClick={async () => {
+                const idToDelete = deleteId;
+                setDeleteId(null);
+                await executeDelete(idToDelete);
+              }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="modal-overlay">
           <div className="modal-content error-modal animate-slide-in">
@@ -274,8 +339,16 @@ export default function ProductCatalogManager() {
       )}
 
       {success && (
-        <div className="success-box">
-          {success}
+        <div className="toast-container">
+          <div className="toast show">
+            <div className="toast-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div className="toast-message">{success}</div>
+            <button type="button" className="toast-close-btn" onClick={() => setSuccess(null)}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
         </div>
       )}
 
@@ -441,6 +514,14 @@ export default function ProductCatalogManager() {
                   <option value="competitor">Competitor SKU</option>
                 </select>
               </label>
+
+              <label className="stack" style={{ gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Status *</span>
+                <select value={status} onChange={(e) => setStatus(e.target.value)} required>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
             </div>
 
             <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
@@ -478,6 +559,7 @@ export default function ProductCatalogManager() {
                   <th>Category</th>
                   <th>AI Code</th>
                   <th>SKU Map</th>
+                  <th>Status</th>
                   <th>Last Updated</th>
                   <th style={{ textAlign: "right", paddingRight: "1.5rem" }}>Actions</th>
                 </tr>
@@ -523,6 +605,28 @@ export default function ProductCatalogManager() {
                         <span className="chip processing" style={{ fontSize: "0.7rem", fontWeight: 700 }}>
                           {getProductCodeName(p.product_code_id)}
                         </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => void handleToggleStatus(p)}
+                          title={p.status === "active" ? "Click to deactivate" : "Click to activate"}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "0.4rem",
+                            padding: "0.25rem 0.65rem", borderRadius: "99px", border: "none",
+                            cursor: "pointer", fontSize: "0.7rem", fontWeight: 700,
+                            background: p.status === "active" ? "#e6f9f0" : "#fdecea",
+                            color: p.status === "active" ? "#15803d" : "#b91c1c",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          <span style={{
+                            width: "6px", height: "6px", borderRadius: "50%",
+                            background: p.status === "active" ? "#15803d" : "#b91c1c",
+                            display: "inline-block"
+                          }} />
+                          {p.status === "active" ? "Active" : "Inactive"}
+                        </button>
                       </td>
                       <td>{p.updatedAt}</td>
                       <td style={{ paddingRight: "1.5rem" }}>

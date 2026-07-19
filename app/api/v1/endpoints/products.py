@@ -24,7 +24,7 @@ _ERROR_RESPONSES = {
 }
 
 _UPLOAD_REQUIRED_COLUMNS = {"product_code_id", "product_name"}
-_UPLOAD_ALLOWED_COLUMNS = {"product_code_id", "product_name", "brand", "category", "ai_code", "type"}
+_UPLOAD_ALLOWED_COLUMNS = {"product_code_id", "product_name", "brand", "category", "ai_code", "type", "status"}
 
 
 def _clean_cell_value(value: Any) -> Any:
@@ -119,7 +119,7 @@ def _validate_upload_columns(rows: list[tuple[int, dict[str, Any]]]) -> None:
 
 def _build_csv_template() -> bytes:
     output = StringIO()
-    writer = csv.DictWriter(output, fieldnames=["product_code_id", "product_name", "brand", "category", "ai_code", "type"])
+    writer = csv.DictWriter(output, fieldnames=["product_code_id", "product_name", "brand", "category", "ai_code", "type", "status"])
     writer.writeheader()
     writer.writerow(
         {
@@ -129,6 +129,7 @@ def _build_csv_template() -> bytes:
             "category": "Beverages",
             "ai_code": "AI-001",
             "type": "self",
+            "status": "active",
         }
     )
     
@@ -140,6 +141,7 @@ def _build_csv_template() -> bytes:
             "category": "Snacks",
             "ai_code": "AI-002",
             "type": "competitor",
+            "status": "active",
         }
     )
     return output.getvalue().encode("utf-8")
@@ -154,9 +156,9 @@ def _build_xlsx_template() -> bytes:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "products_template"
-    sheet.append(["product_code_id", "product_name", "brand", "category", "ai_code", "type"])
-    sheet.append([1, "Sample Product A", "Sample Brand", "Beverages", "AI-001", "self"])
-    sheet.append([2, "Sample Product B", "Comp Brand", "Snacks", "AI-002", "competitor"])
+    sheet.append(["product_code_id", "product_name", "brand", "category", "ai_code", "type", "status"])
+    sheet.append([1, "Sample Product A", "Sample Brand", "Beverages", "AI-001", "self", "active"])
+    sheet.append([2, "Sample Product B", "Comp Brand", "Snacks", "AI-002", "competitor", "active"])
 
     buffer = BytesIO()
     workbook.save(buffer)
