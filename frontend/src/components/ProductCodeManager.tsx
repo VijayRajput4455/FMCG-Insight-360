@@ -145,7 +145,6 @@ export default function ProductCodeManager() {
   function resetForm() {
     setForm(EMPTY_FORM);
     setEditingCode(null);
-    setSuccessMessage(null);
   }
 
   function startEdit(item: ParsedProductCode) {

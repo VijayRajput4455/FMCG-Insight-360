@@ -256,7 +256,7 @@ async def upload_model(
 	file: UploadFile = File(...),
 	product_code_id: int = Form(...),
 	model_name: str = Form(...),
-	folder_name: Optional[str] = Form(None),
+	folder_name: str = Form(...),
 	image_size: int = Form(640),
 	conf_threshold: float = Form(0.45),
 	iou_threshold: float = Form(0.45),
@@ -269,6 +269,11 @@ async def upload_model(
 		raise HTTPException(status_code=400, detail="conf_threshold must be between 0.0 and 1.0")
 	if not (0.0 <= iou_threshold <= 1.0):
 		raise HTTPException(status_code=400, detail="iou_threshold must be between 0.0 and 1.0")
+
+	# Validate folder_name
+	clean_folder = folder_name.replace("..", "").strip("/\\").replace("\\", "/")
+	if not clean_folder:
+		raise HTTPException(status_code=400, detail="Folder name is required for uploading weights file")
 
 	# Validate product_code_id
 	product_code = db.query(ProductCode).filter(ProductCode.id == product_code_id).first()
@@ -288,16 +293,8 @@ async def upload_model(
 	if not filename.endswith(".pt"):
 		raise HTTPException(status_code=400, detail="Only PyTorch model weight files (.pt) are supported")
 
-	# Compute model path based on optional folder_name
-	if folder_name:
-		# Clean folder name to prevent path traversal (e.g. strip ".." and leading/trailing slashes)
-		clean_folder = folder_name.replace("..", "").strip("/\\").replace("\\", "/")
-		if not clean_folder:
-			model_path = filename
-		else:
-			model_path = f"{clean_folder}/{filename}"
-	else:
-		model_path = filename
+	# Compute model path based on mandatory folder_name
+	model_path = f"{clean_folder}/{filename}"
 
 	# Resolve path and ensure parent directories exist
 	resolved_path = _model_service.resolve_model_path(model_path)

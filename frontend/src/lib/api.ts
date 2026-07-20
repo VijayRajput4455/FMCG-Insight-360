@@ -52,10 +52,20 @@ export type AuditStatusResponse = {
   };
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+      return envUrl;
+    }
+    const host = window.location.hostname || "127.0.0.1";
+    return `http://${host}:8000`;
+  }
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+}
 
 function buildUrl(path: string): string {
-  return `${API_BASE}${path}`;
+  return `${getApiBaseUrl()}${path}`;
 }
 
 async function extractError(response: Response, fallbackMessage: string): Promise<string> {
@@ -218,7 +228,7 @@ export function resolveApiAssetUrl(pathOrUrl: string): string {
     return pathOrUrl;
   }
   if (pathOrUrl.startsWith("/")) {
-    return `${API_BASE}${pathOrUrl}`;
+    return `${getApiBaseUrl()}${pathOrUrl}`;
   }
   return pathOrUrl;
 }
@@ -469,12 +479,40 @@ export async function deleteModel(id: number): Promise<void> {
 
 export async function toggleModelActive(id: number): Promise<Model> {
   const response = await fetch(buildUrl(`/api/v1/models/${id}/toggle-active`), {
-    method: "PATCH",
-    headers: { Accept: "application/json" },
+    method: 'PATCH',
+    headers: { Accept: 'application/json' },
   });
-
   if (!response.ok) {
-    throw new Error(await extractError(response, `Failed to toggle model active status (${response.status})`));
+    throw new Error(await extractError(response, `Failed to toggle model active (${response.status})`));
   }
   return response.json();
 }
+
+// New function to upload model weight file and register it
+export async function uploadModel(
+  file: File,
+  product_code_id: number,
+  model_name: string,
+  folder_name: string,
+  image_size = 640,
+  conf_threshold = 0.45,
+  iou_threshold = 0.45,
+): Promise<Model> {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('product_code_id', String(product_code_id));
+  form.append('model_name', model_name);
+  form.append('folder_name', folder_name);
+  form.append('image_size', String(image_size));
+  form.append('conf_threshold', String(conf_threshold));
+  form.append('iou_threshold', String(iou_threshold));
+  const response = await fetch(buildUrl('/api/v1/models/upload'), {
+    method: 'POST',
+    body: form,
+  });
+  if (!response.ok) {
+    throw new Error(await extractError(response, `Model upload failed (${response.status})`));
+  }
+  return response.json();
+}
+

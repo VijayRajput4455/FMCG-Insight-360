@@ -807,27 +807,86 @@ tbody tr:last-child td {
 
 /* --- Drop Zone --- */
 .file-dropzone {
-  border: 2px dashed rgba(16, 185, 129, 0.25);
-  border-radius: 10px;
+  position: relative;
+  border: 2px dashed rgba(76, 175, 80, 0.25);
+  border-radius: 14px;
   padding: 1.75rem;
   text-align: center;
-  background: var(--metric-bg);
+  background: var(--surface-light);
   cursor: pointer;
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 180px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.01);
 }
 
 .file-dropzone:hover {
-  border-color: var(--accent-primary);
-  background: var(--accent-light);
+  border-color: var(--success);
+  background: rgba(76, 175, 80, 0.04);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.01), 0 0 0 4px rgba(76, 175, 80, 0.08);
 }
 
-.file-dropzone svg {
-  color: var(--accent-primary);
-  margin-bottom: 0.25rem;
+.file-dropzone-icon-pulse {
+  color: var(--success);
+  animation: floatPulse 3s ease-in-out infinite;
+}
+
+@keyframes floatPulse {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(-4px) scale(1.05);
+    opacity: 1;
+    filter: drop-shadow(0 4px 8px rgba(76, 175, 80, 0.25));
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.9;
+  }
+}
+
+.dropzone-preview-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dropzone-preview-image {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.dropzone-preview-image:hover {
+  filter: brightness(0.95);
+}
+
+.dropzone-file-details {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropzone-file-subtext {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
 }
 
 /* --- Vertical Stepper (Live Progress) --- */

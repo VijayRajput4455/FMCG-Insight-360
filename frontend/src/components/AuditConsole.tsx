@@ -26,6 +26,7 @@ export default function AuditConsole() {
   const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
   const [imageUrl, setImageUrl] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const [auditId, setAuditId] = useState<number | null>(null);
   const [state, setState] = useState<UiState>("idle");
@@ -65,6 +66,16 @@ export default function AuditConsole() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (uploadFiles.length > 0) {
+      const url = URL.createObjectURL(uploadFiles[0]);
+      setImagePreview(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setImagePreview(null);
+    }
+  }, [uploadFiles]);
 
   const canSubmit = useMemo(() => {
     const validSource = mode === "url" ? imageUrl.trim().length >= 10 : uploadFiles.length > 0;
@@ -287,32 +298,51 @@ export default function AuditConsole() {
         <section className="card stack" style={{ borderLeft: "4px solid #E53935" }}>
           <h2>Upload Image</h2>
           
-          <div className="segmented" role="tablist">
+          <div className="segmented" role="tablist" style={{ margin: "0 0 1rem 0", gap: "0.5rem", padding: "0.35rem", borderRadius: "12px", width: "100%" }}>
             <button
               type="button"
               className={mode === "upload" ? "seg active" : "seg"}
               onClick={() => setMode("upload")}
+              style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", flex: 1, textAlign: "center" }}
             >
-              File Drop
+              📁 File Drop
             </button>
             <button
               type="button"
               className={mode === "url" ? "seg active" : "seg"}
               onClick={() => setMode("url")}
+              style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", flex: 1, textAlign: "center" }}
             >
-              Online Link
+              🔗 Online Link
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="stack" style={{ gap: "1rem" }}>
             {mode === "upload" ? (
               <div className="file-dropzone" onClick={() => document.getElementById("file-input-console")?.click()}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <span>
-                  {uploadFiles.length > 0 
-                    ? (uploadFiles.length === 1 ? uploadFiles[0].name : `${uploadFiles.length} files selected`) 
-                    : "Drag & drop image(s) or click to browse"}
-                </span>
+                {imagePreview ? (
+                  <div className="dropzone-preview-container animate-slide-in">
+                    <img 
+                      src={imagePreview} 
+                      alt="Upload preview" 
+                      className="dropzone-preview-image" 
+                    />
+                    <div className="dropzone-file-details">
+                      {uploadFiles.length === 1 ? uploadFiles[0].name : `${uploadFiles.length} files selected`}
+                    </div>
+                    <div className="dropzone-file-subtext">Click to change image</div>
+                  </div>
+                ) : (
+                  <>
+                    <svg className="file-dropzone-icon-pulse" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                      Drag & drop image(s) or click to browse
+                    </span>
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                      Supports JPG, PNG, WEBP (Max 10MB)
+                    </span>
+                  </>
+                )}
                 <input
                   id="file-input-console"
                   type="file"
