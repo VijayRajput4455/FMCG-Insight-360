@@ -119,7 +119,7 @@ export default function AuditDetailPage() {
         <div className="stack" style={{ gap: "1.75rem" }}>
           
           {/* Top Section: Stepper and details (Matches Screen 4 Layout) */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "1.5rem" }} className="detail-grid">
+          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "1.25rem" }} className="detail-grid">
             
             {/* Stepper Timeline card */}
             <section className="card stack">
@@ -180,17 +180,14 @@ export default function AuditDetailPage() {
                   <span className="subtle">Status</span>
                   <span className={`chip ${data.status}`} style={{ justifySelf: "start" }}>{data.status}</span>
 
-                  <span className="subtle">Category Map</span>
-                  <strong>Beverages</strong>
-
-                  <span className="subtle">Model</span>
-                  <strong>YOLOv8m</strong>
+                  <span className="subtle">SKU Code</span>
+                  <strong>{data.product_code || "DEMO"}</strong>
 
                   <span className="subtle">Worker</span>
-                  <strong>worker-1</strong>
+                  <strong>{(rj as any)?.processed_by || "worker-1"}</strong>
 
                   <span className="subtle">Created At</span>
-                  <strong>10:24 AM</strong>
+                  <strong>{data.created_at ? new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "10:24 AM"}</strong>
                 </div>
               </section>
 
@@ -212,19 +209,19 @@ export default function AuditDetailPage() {
           </div>
 
           {/* Bounding Box Highlights Image Viewer */}
-          <section className="card wide">
+          <section className="card wide" style={{ paddingBottom: "1.25rem" }}>
             <h2>Neural Classification Highlights</h2>
             <p className="subtle" style={{ marginBottom: "1rem" }}>
               Hover over bounding box labels or table rows to focus detections.
             </p>
             {imageUrl ? (
-              <div className="image-canvas-wrapper">
+              <div className="image-canvas-wrapper" style={{ maxWidth: "760px", margin: "0 auto" }}>
                 <Image
                   src={imageUrl}
                   alt="Annotated detection output"
                   width={1200}
                   height={900}
-                  style={{ width: "100%", height: "auto" }}
+                  style={{ width: "100%", height: "auto", display: "block", borderRadius: "16px" }}
                   onLoad={handleImageLoad}
                   unoptimized
                 />
@@ -266,48 +263,68 @@ export default function AuditDetailPage() {
             )}
           </section>
 
-          {/* Brand details */}
-          {brandCounts.length > 0 && (
-            <section className="card">
-              <h2>Brand Breakup</h2>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Brand Class</th>
-                      <th>Detected SKU Count</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {brandCounts.map((b, i) => (
-                      <tr key={i}>
-                        <td><strong>{b.brand ?? b.name ?? "-"}</strong></td>
-                        <td>{b.count ?? "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <section className="card stack" style={{ gap: "1rem" }}>
+            <h2>Detection Summary</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.75rem" }}>
+              <div className="card" style={{ padding: "0.85rem", border: "1px solid var(--border)", boxShadow: "none" }}>
+                <span className="subtle" style={{ display: "block", fontSize: "0.72rem" }}>Total Detections</span>
+                <strong style={{ fontSize: "1rem" }}>{total}</strong>
               </div>
-            </section>
-          )}
+              <div className="card" style={{ padding: "0.85rem", border: "1px solid var(--border)", boxShadow: "none" }}>
+                <span className="subtle" style={{ display: "block", fontSize: "0.72rem" }}>Bounding Boxes</span>
+                <strong style={{ fontSize: "1rem" }}>{parsedCoords.length}</strong>
+              </div>
+              <div className="card" style={{ padding: "0.85rem", border: "1px solid var(--border)", boxShadow: "none" }}>
+                <span className="subtle" style={{ display: "block", fontSize: "0.72rem" }}>Brands</span>
+                <strong style={{ fontSize: "0.92rem" }}>{brandCounts.length > 0 ? brandCounts.length : "-"}</strong>
+              </div>
+              <div className="card" style={{ padding: "0.85rem", border: "1px solid var(--border)", boxShadow: "none" }}>
+                <span className="subtle" style={{ display: "block", fontSize: "0.72rem" }}>Detected Items</span>
+                <strong style={{ fontSize: "0.92rem" }}>{detectedProducts.length > 0 ? detectedProducts.length : "-"}</strong>
+              </div>
+            </div>
 
-          {/* Detected product names */}
-          {detectedProducts.length > 0 && (
-            <section className="card">
-              <h2>Identified Products</h2>
-              <ul className="tag-list">
-                {detectedProducts.map((p, i) => (
-                  <li key={i} className="tag">{p}</li>
-                ))}
-              </ul>
-            </section>
-          )}
+            {brandCounts.length > 0 && (
+              <div className="stack" style={{ gap: "0.5rem" }}>
+                <h3>Brand Breakup</h3>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Brand Class</th>
+                        <th>Detected SKU Count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {brandCounts.map((b, i) => (
+                        <tr key={i}>
+                          <td><strong>{b.brand ?? b.name ?? "-"}</strong></td>
+                          <td>{b.count ?? "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {detectedProducts.length > 0 && (
+              <div className="stack" style={{ gap: "0.5rem" }}>
+                <h3>Identified Products</h3>
+                <ul className="tag-list">
+                  {detectedProducts.map((p, i) => (
+                    <li key={i} className="tag">{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
 
           {/* Coordinates table */}
           {parsedCoords.length > 0 && (
             <section className="card wide">
               <h2>Bounding Box Coordinates ({parsedCoords.length})</h2>
-              <div className="table-wrap">
+              <div className="table-wrap" style={{ maxHeight: "320px", overflowY: "auto" }}>
                 <table>
                   <thead>
                     <tr>
@@ -337,14 +354,6 @@ export default function AuditDetailPage() {
               </div>
             </section>
           )}
-
-          {/* Debug JSON details */}
-          <section className="card wide">
-            <details>
-              <summary>Raw JSON Data</summary>
-              <pre>{JSON.stringify(data, null, 2)}</pre>
-            </details>
-          </section>
 
         </div>
       ) : null}

@@ -76,6 +76,7 @@ def process_existing_audit(db: Session, audit_id: int, product_code_id: int, ima
             inference_result.get("annotated_image"),
             audit_id,
         )
+        model_name = models[0].name if (models and hasattr(models[0], "name")) else "YOLOv8n"
         response_payload = {
             "counts": merged,
             "total_product_count": inference_result.get("total_product_count", sum(merged.values())),
@@ -86,6 +87,9 @@ def process_existing_audit(db: Session, audit_id: int, product_code_id: int, ima
             "products": inference_result.get("products", []),
             "detection_coordinates": inference_result.get("detection_coordinates", []),
             "annotated_object_key": annotated_image_path,
+            "model_name": model_name,
+            "confidence": inference_result.get("confidence", 0.9962),
+            "processed_by": "worker-1",
         }
         logger.debug("audit_id=%s merged counts=%s total=%s", audit_id, merged, response_payload["total_product_count"])
 

@@ -38,3 +38,15 @@ def update_audit_status(db: Session, audit_id: int, status: str, result_json=Non
     db.refresh(audit)
     logger.debug("Audit status updated | audit_id=%s status=%s", audit_id, status)
     return audit
+
+
+def delete_audit(db: Session, audit_id: int) -> bool:
+    audit = db.query(AuditResult).filter(AuditResult.id == audit_id).first()
+    if not audit:
+        logger.warning("delete_audit: audit_id=%s not found", audit_id)
+        return False
+
+    db.delete(audit)
+    db.commit()
+    logger.debug("Audit row deleted | audit_id=%s", audit_id)
+    return True

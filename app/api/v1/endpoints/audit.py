@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.audit_result import AuditResult
 from app.models.product_code import ProductCode
-from app.repositories.audit_repo import create_audit, update_audit_status
+from app.repositories.audit_repo import create_audit, update_audit_status, delete_audit
 from app.services.minio_service import get_minio_service
 from app.services.rabbitmq_service import get_rabbitmq_client
 from app.services.redis_cache import get_redis_cache
@@ -505,3 +505,21 @@ def get_audit_image(filename: str):
 		raise HTTPException(status_code=404, detail="Image not found")
 
 	return FileResponse(file_path, media_type="image/jpeg")
+
+
+@router.delete("/{audit_id}", summary="Delete an audit result record")
+def delete_audit_endpoint(audit_id: int, db: Session = Depends(get_db)):
+	"""
+	Delete an audit result from the database and invalidate its cached entry.
+	"""
+	audit = db.query(AuditResult).filter(AuditResult.id == audit_id).first()
+	if not audit:
+		raise HTTPException(status_code=404, detail="Audit not found")
+
+	delete_audit(db, audit_id)
+
+	# Invalidate Redis cache entry if cached
+	cache_key = _audit_result_cache_key(audit_id)
+	redis_cache.delete(cache_key)
+
+	return {"message": f"Audit {audit_id} deleted successfully", "audit_id": audit_id}

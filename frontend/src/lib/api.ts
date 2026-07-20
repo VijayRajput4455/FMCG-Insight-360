@@ -36,6 +36,9 @@ export type AuditStatusResponse = {
   audit_id: number;
   status: string;
   error_message?: string | null;
+  created_at?: string;
+  product_code?: string;
+  category?: string;
   result_json?: {
     product_image_url?: string;
     image_name?: string;
@@ -158,6 +161,19 @@ export async function getAuditStatus(auditId: number): Promise<AuditStatusRespon
   }
 
   return response.json();
+}
+
+export async function deleteAudit(auditId: number): Promise<void> {
+  const response = await fetch(buildUrl(`/api/v1/audit/${auditId}`), {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await extractError(response, `Delete audit failed (${response.status})`));
+  }
 }
 
 export async function listProductCodes(): Promise<ProductCode[]> {

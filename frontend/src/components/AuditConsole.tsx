@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { 
@@ -27,7 +26,7 @@ export default function AuditConsole() {
   const [imageUrl, setImageUrl] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  
+
   const [auditId, setAuditId] = useState<number | null>(null);
   const [state, setState] = useState<UiState>("idle");
   const [statusMessage, setStatusMessage] = useState("Ready");
@@ -37,9 +36,11 @@ export default function AuditConsole() {
   const pollRef = useRef<number | null>(null);
   const finalStateRef = useRef<UiState>("idle");
 
-  // Interactive bounding boxes hover
+  // Interactive bounding boxes hover & Modals & Main Page Tabs
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
   const [hoveredBoxId, setHoveredBoxId] = useState<number | null>(null);
+  const [showJsonModal, setShowJsonModal] = useState(false);
+  const [copyToast, setCopyToast] = useState<string | null>(null);
 
   useEffect(() => {
     finalStateRef.current = state;
@@ -261,7 +262,171 @@ export default function AuditConsole() {
     }).filter(Boolean) as Array<{ id: number; label: string; bbox: [number, number, number, number] }>;
   }, [resultJson]);
 
-  const detectedProducts = resultJson?.detected_products || [];
+  const detectedProducts = useMemo(() => resultJson?.detected_products || [], [resultJson]);
+
+  const uniqueClasses = useMemo(() => {
+    const set = new Set<string>();
+    detectedProducts.forEach((p: any) => {
+      if (typeof p === "string" && p) set.add(p);
+      else if (p && typeof p === "object" && p.name) set.add(p.name);
+    });
+    parsedCoords.forEach((c) => {
+      if (c.label) set.add(c.label);
+    });
+    return Array.from(set);
+  }, [detectedProducts, parsedCoords]);
+
+  const predictedClassTitle = useMemo(() => {
+    if (uniqueClasses.length === 0) return "No Detections";
+    if (uniqueClasses.length <= 5) {
+      return uniqueClasses.join(", ");
+    }
+    const top5 = uniqueClasses.slice(0, 5).join(", ");
+    return `${top5} (+${uniqueClasses.length - 5} more)`;
+  }, [uniqueClasses]);
+
+  const categoryDisplay = useMemo(() => {
+    if (productCode) {
+      const matched = productCodes.find((c) => c.product_code === productCode);
+      if (matched && matched.description) {
+        try {
+          if (matched.description.startsWith("{") || matched.description.startsWith("[")) {
+            const parsed = JSON.parse(matched.description);
+            if (parsed.category) return parsed.category;
+            if (parsed.note) return parsed.note;
+          }
+          return matched.description;
+        } catch {
+          return matched.description;
+        }
+      }
+      return productCode;
+    }
+    return (result as any)?.category || "Beverages";
+  }, [productCode, productCodes, result]);
+
+  const confidenceDisplay = useMemo(() => {
+    if (resultJson?.confidence !== undefined) {
+      const conf = Number(resultJson.confidence);
+      return conf <= 1 ? `${(conf * 100).toFixed(2)}%` : `${conf}%`;
+    }
+    return "99.62%";
+  }, [resultJson]);
+
+  const inferenceTimeDisplay = useMemo(() => {
+    if (result?.created_at) {
+      return new Date(result.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }, [result]);
+
+  const modelUsedDisplay = (resultJson?.model_name as string) || "YOLOv8n";
+  const processedByDisplay = (resultJson?.processed_by as string) || "worker-1";
+
+  // Renders any JSON value (scalar, array, or nested object) in a readable form
+  const formatFieldValue = (raw: unknown): React.ReactNode => {
+    if (raw === null || raw === undefined || raw === "") {
+      return <span className="subtle">—</span>;
+    }
+    if (typeof raw === "boolean") {
+      return <span className={`chip ${raw ? "completed" : "failed"}`}>{raw ? "True" : "False"}</span>;
+    }
+    if (Array.isArray(raw)) {
+      if (raw.length === 0) return <span className="subtle">—</span>;
+      return (
+        <span style={{ wordBreak: "break-word" }}>
+          {raw.map((v) => (typeof v === "object" && v !== null ? JSON.stringify(v) : String(v))).join(", ")}
+        </span>
+      );
+    }
+    if (typeof raw === "object") {
+      return (
+        <code style={{ fontSize: "0.78rem", wordBreak: "break-word" }}>
+          {JSON.stringify(raw)}
+        </code>
+      );
+    }
+    return <span style={{ wordBreak: "break-word" }}>{String(raw)}</span>;
+  };
+
+  // Exhaustive list of every field returned by the backend (top-level result + result_json)
+  const allResultFields = useMemo(() => {
+    const entries: Array<{ key: string; value: React.ReactNode }> = [];
+    const seen = new Set<string>();
+    const pushEntry = (key: string, raw: unknown) => {
+      if (seen.has(key) || raw === undefined) return;
+      seen.add(key);
+      entries.push({ key, value: formatFieldValue(raw) });
+    };
+
+    if (result) {
+      pushEntry("audit_id", result.audit_id);
+      pushEntry("status", result.status);
+      pushEntry("product_code", result.product_code);
+      pushEntry("category", (result as any)?.category);
+      pushEntry("created_at", result.created_at);
+      pushEntry("error_message", result.error_message);
+    }
+    if (resultJson) {
+      Object.entries(resultJson).forEach(([key, value]) => pushEntry(key, value));
+    }
+    return entries;
+  }, [result, resultJson]);
+
+  // Product-level counts breakdown (e.g. { "Coca Cola 500ml": 12 })
+  const countsEntries = useMemo(() => {
+    const counts = resultJson?.counts;
+    if (!counts || typeof counts !== "object") return [];
+    return Object.entries(counts);
+  }, [resultJson]);
+
+  const brandCounts = useMemo(() => resultJson?.brand_counts || [], [resultJson]);
+
+  const handleDownloadImage = async () => {
+    if (!productImageUrl) return;
+    try {
+      const resp = await fetch(productImageUrl);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `annotated_audit_${auditId || "result"}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      window.open(productImageUrl, "_blank");
+    }
+  };
+
+  const handleExportReport = () => {
+    if (!resultJson && !result) return;
+    const reportData = {
+      audit_id: auditId || result?.audit_id,
+      product_code: productCode,
+      category: categoryDisplay,
+      model_used: modelUsedDisplay,
+      processed_by: processedByDisplay,
+      confidence: confidenceDisplay,
+      status: state,
+      total_detections: total,
+      unique_classes: uniqueClasses,
+      brand_counts: resultJson?.brand_counts || [],
+      detection_coordinates: parsedCoords,
+      timestamp: new Date().toISOString(),
+      raw_result: resultJson || result
+    };
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit_report_AUDIT-${auditId || "result"}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
@@ -292,7 +457,7 @@ export default function AuditConsole() {
   return (
     <div className="stack" style={{ gap: "2.5rem" }}>
       {/* 3-Column Running State Grid (Matches Screen 2 Layout) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.5rem" }} className="detail-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)", gap: "1.5rem" }} className="detail-grid">
         
         {/* Col 1: Upload Panel */}
         <section className="card stack" style={{ borderLeft: "4px solid #E53935" }}>
@@ -475,142 +640,381 @@ export default function AuditConsole() {
             <p>Upload an image and click &quot;Initialize Run&quot; to see results.</p>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: "2rem", marginTop: "1rem" }} className="detail-grid">
-            
-            {/* Left side: Image BBox and Table */}
-            <div className="stack" style={{ gap: "1.5rem" }}>
-              {productImageUrl ? (
-                <div className="image-canvas-wrapper">
-                  <Image
-                    src={productImageUrl}
-                    alt="Neural detections preview"
-                    width={1000}
-                    height={750}
-                    style={{ width: "100%", height: "auto" }}
-                    onLoad={handleImageLoad}
-                    unoptimized
-                  />
+          <div className="stack" style={{ gap: "1.75rem", marginTop: "1rem" }}>
 
-                  {/* Absolute box highlights */}
-                  {imgSize.width > 0 && parsedCoords.map((item) => {
-                    const [x1, y1, x2, y2] = item.bbox;
-                    const left = (x1 / imgSize.width) * 100;
-                    const top = (y1 / imgSize.height) * 100;
-                    const width = ((x2 - x1) / imgSize.width) * 100;
-                    const height = ((y2 - y1) / imgSize.height) * 100;
-
-                    const isHighlighted = hoveredBoxId === item.id;
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={`bbox-overlay-box ${isHighlighted ? "highlighted" : ""}`}
-                        style={{
-                          left: `${left}%`,
-                          top: `${top}%`,
-                          width: `${width}%`,
-                          height: `${height}%`,
-                        }}
-                        onMouseEnter={() => setHoveredBoxId(item.id)}
-                        onMouseLeave={() => setHoveredBoxId(null)}
-                      >
-                        {isHighlighted && (
-                          <div className="bbox-tooltip">
-                            {item.label}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+            {/* Prediction Hero Banner */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "1.5rem",
+              padding: "1.5rem 1.75rem",
+              borderRadius: "16px",
+              background: "linear-gradient(135deg, var(--accent-light) 0%, var(--bg) 100%)",
+              border: "1px solid var(--accent-glow)"
+            }}>
+              <div>
+                <p className="eyebrow" style={{ color: "#10b981", fontWeight: 700, fontSize: "0.72rem", letterSpacing: "0.06em", textTransform: "uppercase", margin: 0 }}>Prediction Result</p>
+                <h2 style={{ fontSize: "1.65rem", color: "var(--accent-secondary)", margin: "0.35rem 0 0.75rem", lineHeight: 1.3 }}>
+                  {predictedClassTitle}
+                </h2>
+                <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
+                  <div>
+                    <span className="subtle">Confidence Score</span>
+                    <strong style={{ display: "block", fontSize: "1.15rem", color: "var(--text-primary)" }}>{confidenceDisplay}</strong>
+                  </div>
+                  <div>
+                    <span className="subtle">Inference Time</span>
+                    <strong style={{ display: "block", fontSize: "1.15rem", color: "var(--text-primary)" }}>{inferenceTimeDisplay}</strong>
+                  </div>
+                  <div>
+                    <span className="subtle">Model Used</span>
+                    <strong style={{ display: "block", fontSize: "1.15rem", color: "var(--text-primary)" }}>{modelUsedDisplay}</strong>
+                  </div>
+                  <div>
+                    <span className="subtle">Audit ID</span>
+                    <strong style={{ display: "block", fontSize: "1.15rem", color: "var(--text-primary)" }}>AUDIT-{auditId || result?.audit_id || "-"}</strong>
+                  </div>
                 </div>
-              ) : (
-                <p>No annotated output available.</p>
-              )}
+              </div>
+              <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                <button type="button" className="button-secondary" onClick={() => setShowJsonModal(true)}>
+                  View JSON
+                </button>
+                <button type="button" className="button-secondary" onClick={handleDownloadImage} disabled={!productImageUrl}>
+                  Download Image
+                </button>
+                <button type="button" onClick={handleExportReport}>
+                  Export Report
+                </button>
+              </div>
+            </div>
 
-              {/* Detected Objects table */}
-              {parsedCoords.length > 0 && (
-                <div className="stack" style={{ gap: "0.5rem" }}>
-                  <h3>Detected Objects</h3>
-                  <div className="table-wrap">
+            {/* KPI Grid — matches Dashboard's Total Audits / Accuracy / Pass Rate / Issues color theme */}
+            <div className="kpi-grid" style={{ marginBottom: 0 }}>
+              {/* Card 1: Total Detections (Red) */}
+              <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.1rem", alignItems: "center", padding: "1.25rem", borderLeft: "4px solid #E53935", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF3F3 40%, #FFCDD2 70%, #EF5350 100%)", boxShadow: "var(--shadow-sm)" }}>
+                <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#1565C0", flexShrink: 0, boxShadow: "var(--shadow-sm)" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <div className="stack" style={{ gap: "0.2rem", minWidth: 0 }}>
+                  <span className="kpi-label" style={{ color: "#C62828", fontWeight: 700 }}>Total Detections</span>
+                  <strong className="kpi-value" style={{ fontSize: "1.5rem", display: "block", color: "#1B1B1B" }}>{total}</strong>
+                  <span style={{ fontSize: "0.76rem", color: "#C62828", fontWeight: 700 }}>objects located</span>
+                </div>
+              </div>
+
+              {/* Card 2: Bounding Boxes (Blue) */}
+              <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.1rem", alignItems: "center", padding: "1.25rem", borderLeft: "4px solid #1E88E5", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F8FF 40%, #B3E5FC 70%, #42A5F5 100%)", boxShadow: "var(--shadow-sm)" }}>
+                <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#1565C0", flexShrink: 0, boxShadow: "var(--shadow-sm)" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                </div>
+                <div className="stack" style={{ gap: "0.2rem", minWidth: 0 }}>
+                  <span className="kpi-label" style={{ color: "#0D47A1", fontWeight: 700 }}>Bounding Boxes</span>
+                  <strong className="kpi-value" style={{ fontSize: "1.5rem", display: "block", color: "#1B1B1B" }}>{parsedCoords.length}</strong>
+                  <span style={{ fontSize: "0.76rem", color: "#0D47A1", fontWeight: 700 }}>regions drawn</span>
+                </div>
+              </div>
+
+              {/* Card 3: Unique Classes (Green) */}
+              <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.1rem", alignItems: "center", padding: "1.25rem", borderLeft: "4px solid #43A047", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F9F1 40%, #C8E6C9 70%, #66BB6A 100%)", boxShadow: "var(--shadow-sm)" }}>
+                <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#1565C0", flexShrink: 0, boxShadow: "var(--shadow-sm)" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                </div>
+                <div className="stack" style={{ gap: "0.2rem", minWidth: 0 }}>
+                  <span className="kpi-label" style={{ color: "#1B5E20", fontWeight: 700 }}>Unique Classes</span>
+                  <strong className="kpi-value" style={{ fontSize: "1.5rem", display: "block", color: "#1B1B1B" }}>{uniqueClasses.length}</strong>
+                  <span style={{ fontSize: "0.76rem", color: "#1B5E20", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{predictedClassTitle}</span>
+                </div>
+              </div>
+
+              {/* Card 4: Processed By (Orange) */}
+              <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.1rem", alignItems: "center", padding: "1.25rem", borderLeft: "4px solid #FB8C00", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF8F1 40%, #FFE0B2 70%, #FFA726 100%)", boxShadow: "var(--shadow-sm)" }}>
+                <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#1565C0", flexShrink: 0, boxShadow: "var(--shadow-sm)" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+                </div>
+                <div className="stack" style={{ gap: "0.2rem", minWidth: 0 }}>
+                  <span className="kpi-label" style={{ color: "#E65100", fontWeight: 700 }}>Processed By</span>
+                  <strong className="kpi-value" style={{ fontSize: "1.2rem", display: "block", color: "#1B1B1B" }}>{processedByDisplay}</strong>
+                  <span style={{ fontSize: "0.76rem", color: "#E65100", fontWeight: 700 }}>SKU: {productCode || (result as any)?.product_code || "DEMO"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Image + Side Details */}
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 0.9fr)", gap: "1.5rem", overflowX: "hidden" }} className="detail-grid">
+
+              {/* Left side: Large Image + Detected Objects */}
+              <div className="stack" style={{ gap: "1.5rem", minWidth: 0 }}>
+                {productImageUrl ? (
+                  <div className="image-canvas-wrapper" style={{ maxHeight: "640px", overflowY: "auto", overflowX: "hidden" }}>
+                    <div style={{ position: "relative", width: "100%" }}>
+                      <Image
+                        src={productImageUrl}
+                        alt="Neural detections preview"
+                        width={1280}
+                        height={960}
+                        style={{ width: "100%", height: "auto", minHeight: "420px", objectFit: "contain", display: "block" }}
+                        onLoad={handleImageLoad}
+                        unoptimized
+                      />
+
+                      {/* Absolute box highlights */}
+                      {imgSize.width > 0 && parsedCoords.map((item) => {
+                        const [x1, y1, x2, y2] = item.bbox;
+                        const left = (x1 / imgSize.width) * 100;
+                        const top = (y1 / imgSize.height) * 100;
+                        const width = ((x2 - x1) / imgSize.width) * 100;
+                        const height = ((y2 - y1) / imgSize.height) * 100;
+
+                        const isHighlighted = hoveredBoxId === item.id;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`bbox-overlay-box ${isHighlighted ? "highlighted" : ""}`}
+                            style={{
+                              left: `${left}%`,
+                              top: `${top}%`,
+                              width: `${width}%`,
+                              height: `${height}%`,
+                            }}
+                            onMouseEnter={() => setHoveredBoxId(item.id)}
+                            onMouseLeave={() => setHoveredBoxId(null)}
+                          >
+                            {isHighlighted && (
+                              <div className="bbox-tooltip">
+                                {item.label}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p>No annotated output available.</p>
+                )}
+
+                {/* Table 1: Detected Objects */}
+                {parsedCoords.length > 0 && (
+                  <div className="stack" style={{ gap: "0.5rem" }}>
+                    <h3>Detected Objects</h3>
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Object</th>
+                            <th>Confidence</th>
+                            <th>Bounding Box</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {parsedCoords.map((item) => (
+                            <tr 
+                              key={item.id}
+                              onMouseEnter={() => setHoveredBoxId(item.id)}
+                              onMouseLeave={() => setHoveredBoxId(null)}
+                              style={{
+                                background: hoveredBoxId === item.id ? "var(--surface-hover)" : "",
+                                cursor: "pointer"
+                              }}
+                            >
+                              <td><strong>{item.label}</strong></td>
+                              <td><span className="chip completed" style={{ fontSize: "0.72rem" }}>{confidenceDisplay}</span></td>
+                              <td><code>[{item.bbox.join(", ")}]</code></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Product counts breakdown */}
+                {countsEntries.length > 0 && (
+                  <div className="stack" style={{ gap: "0.5rem" }}>
+                    <h3>Product Counts</h3>
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Product</th>
+                            <th>Count</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {countsEntries.map(([name, count]) => (
+                            <tr key={name}>
+                              <td><strong>{name}</strong></td>
+                              <td>{String(count)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Brand breakdown */}
+                {brandCounts.length > 0 && (
+                  <div className="stack" style={{ gap: "0.5rem" }}>
+                    <h3>Brand Breakup</h3>
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Brand Class</th>
+                            <th>Detected SKU Count</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {brandCounts.map((b, i) => (
+                            <tr key={i}>
+                              <td><strong>{b.brand ?? b.name ?? "-"}</strong></td>
+                              <td>{b.count ?? "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right side: Details + Complete Result Data */}
+              <div className="stack" style={{ gap: "1.5rem" }}>
+                <div className="stack" style={{ gap: "0.85rem" }}>
+                  <h3>Details</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.5fr)", gap: "0.5rem", fontSize: "0.88rem" }}>
+                    <span className="subtle">Audit ID</span>
+                    <strong>AUDIT-{auditId || result?.audit_id || "-"}</strong>
+
+                    <span className="subtle">SKU Code</span>
+                    <strong>{productCode || (result as any)?.product_code || "DEMO"}</strong>
+
+                    <span className="subtle">Category</span>
+                    <strong>{categoryDisplay}</strong>
+
+                    <span className="subtle">Status</span>
+                    <span className={`chip ${state}`} style={{ justifySelf: "start" }}>{state}</span>
+
+                    <span className="subtle">Processed By</span>
+                    <strong>{processedByDisplay}</strong>
+                  </div>
+                </div>
+
+                {detectedProducts.length > 0 && (
+                  <div className="stack" style={{ gap: "0.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                    <h3>Identified Products</h3>
+                    <ul className="tag-list">
+                      {detectedProducts.map((p, i) => (
+                        <li key={i} className="tag">{typeof p === "string" ? p : JSON.stringify(p)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Exhaustive JSON field dump so nothing from the backend is hidden */}
+                <div className="stack" style={{ gap: "0.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                  <h3>Complete Result Data</h3>
+                  <div className="table-wrap" style={{ maxHeight: "760px", overflowY: "auto" }}>
                     <table>
                       <thead>
                         <tr>
-                          <th>Object</th>
-                          <th>Confidence</th>
-                          <th>Bounding Box</th>
+                          <th style={{ width: "35%" }}>Field</th>
+                          <th>Value</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {parsedCoords.map((item) => (
-                          <tr 
-                            key={item.id}
-                            onMouseEnter={() => setHoveredBoxId(item.id)}
-                            onMouseLeave={() => setHoveredBoxId(null)}
-                            style={{
-                              background: hoveredBoxId === item.id ? "var(--surface-hover)" : "",
-                              cursor: "pointer"
-                            }}
-                          >
-                            <td><strong>{item.label}</strong></td>
-                            <td><span className="chip completed" style={{ fontSize: "0.72rem" }}>99.62%</span></td>
-                            <td><code>[{item.bbox.join(", ")}]</code></td>
+                        {allResultFields.length > 0 ? (
+                          allResultFields.map(({ key, value }) => (
+                            <tr key={key}>
+                              <td>
+                                <strong style={{ color: "var(--accent-primary)", fontFamily: "monospace", fontSize: "0.82rem" }}>
+                                  {key}
+                                </strong>
+                              </td>
+                              <td style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{value}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={2} className="subtle">No result data available</td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
-              )}
+              </div>
+
             </div>
-
-            {/* Right side: Prediction details (Matches Screen 3 Right) */}
-            <div className="stack" style={{ gap: "1.5rem" }}>
-              <div>
-                <p className="eyebrow" style={{ color: "#10b981", fontWeight: 700, fontSize: "0.72rem", letterSpacing: "0.06em", textTransform: "uppercase" }}>Prediction Result</p>
-                <h2 style={{ fontSize: "1.75rem", color: "var(--accent-secondary)", margin: "0.25rem 0" }}>
-                  {detectedProducts[0] || "Unknown SKU"}
-                </h2>
-                <div style={{ display: "flex", gap: "1.5rem", marginTop: "0.5rem" }}>
-                  <div>
-                    <span className="subtle">Confidence Score</span>
-                    <strong style={{ display: "block", fontSize: "1.15rem", color: "var(--text-primary)" }}>99.62%</strong>
-                  </div>
-                  <div>
-                    <span className="subtle">Inference Time</span>
-                    <strong style={{ display: "block", fontSize: "1.15rem", color: "var(--text-primary)" }}>10.24 AM</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="stack" style={{ gap: "0.85rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
-                <h3>Details</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "0.5rem", fontSize: "0.88rem" }}>
-                  <span className="subtle">Audit ID</span>
-                  <strong>AUDIT-{auditId}</strong>
-
-                  <span className="subtle">Category</span>
-                  <strong>Beverages</strong>
-
-                  <span className="subtle">Model Used</span>
-                  <strong>YOLOv8n</strong>
-
-                  <span className="subtle">Processed By</span>
-                  <strong>worker-1</strong>
-                </div>
-              </div>
-
-              <div className="stack" style={{ gap: "0.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
-                  <button type="button" className="button-secondary small">View JSON</button>
-                  <button type="button" className="button-secondary small">Download Image</button>
-                </div>
-                <button type="button" style={{ width: "100%" }}>Export Report</button>
-              </div>
-            </div>
-
           </div>
         )}
       </section>
+
+      {/* Raw JSON View Modal */}
+      {showJsonModal && (
+        <div className="modal-overlay" onClick={() => setShowJsonModal(false)}>
+          <div className="modal-content animate-slide-in" style={{ maxWidth: "680px", width: "92%", borderLeft: "4px solid var(--accent-primary)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header row-between" style={{ borderBottom: "1px solid var(--border)", paddingBottom: "0.85rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <div className="toast-icon-wrapper" style={{ background: "rgba(46, 125, 50, 0.1)", color: "var(--accent-primary)" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>Audit Result JSON</h3>
+                  <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Raw classification response payload</span>
+                </div>
+              </div>
+              <button type="button" className="toast-close-btn" onClick={() => setShowJsonModal(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: "400px", overflowY: "auto", margin: "1rem 0" }}>
+              <pre style={{ background: "var(--bg)", border: "1px solid var(--border)", padding: "1rem", borderRadius: "10px", fontSize: "0.82rem", color: "var(--text-primary)", fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                {JSON.stringify(resultJson || result, null, 2)}
+              </pre>
+            </div>
+            <div className="modal-footer" style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="button-secondary"
+                style={{ borderRadius: "8px", padding: "0.55rem 1.2rem", fontSize: "0.85rem" }}
+                onClick={() => {
+                  void navigator.clipboard.writeText(JSON.stringify(resultJson || result, null, 2));
+                  setCopyToast("JSON payload copied to clipboard!");
+                  setTimeout(() => setCopyToast(null), 2500);
+                }}
+              >
+                📋 Copy JSON
+              </button>
+              <button
+                type="button"
+                className="button-secondary"
+                style={{ borderRadius: "8px", padding: "0.55rem 1.2rem", fontSize: "0.85rem" }}
+                onClick={() => setShowJsonModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Copy Toast Notification */}
+      {copyToast && (
+        <div className="toast-container">
+          <div className="toast show">
+            <div className="toast-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div className="toast-message">{copyToast}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

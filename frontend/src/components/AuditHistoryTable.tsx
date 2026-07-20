@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { getAuditStatus, listAudits, resolveApiAssetUrl, type AuditLogItem } from "@/lib/api";
+import { deleteAudit, getAuditStatus, listAudits, resolveApiAssetUrl, type AuditLogItem } from "@/lib/api";
 import { getHistory, type AuditHistoryItem, type HistoryStatus, updateHistoryStatus } from "@/lib/history";
 import { SkeletonRows } from "@/components/Skeleton";
 
@@ -26,6 +26,18 @@ export default function AuditHistoryTable() {
   
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
+
+  // Error, Success and Delete Modal states
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   // View state
   const [viewMode, setViewMode] = useState<"table" | "card" | "timeline">("table");
@@ -184,8 +196,87 @@ export default function AuditHistoryTable() {
     window.print();
   };
 
+  const executeDelete = async (auditId: number) => {
+    try {
+      await deleteAudit(auditId);
+      setSuccess(`Audit #${auditId} deleted successfully!`);
+      if (selectedAudit?.id === auditId) {
+        setSelectedAudit(null);
+      }
+      if (source === "db") {
+        await loadDbAudits();
+      } else {
+        loadLocalAudits();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete audit");
+    }
+  };
+
   return (
     <section className="card full stack" style={{ position: "relative", borderLeft: "4px solid #E53935" }}>
+      {deleteId !== null && (
+        <div className="modal-overlay">
+          <div className="modal-content error-modal animate-slide-in">
+            <div className="modal-header">
+              <div className="error-icon-wrapper" style={{ background: "rgba(229, 57, 53, 0.1)", color: "#E53935" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h3>Confirm Delete</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete Audit record #{deleteId}?</p>
+            </div>
+            <div className="modal-footer" style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button type="button" className="button-secondary" onClick={() => setDeleteId(null)}>
+                Cancel
+              </button>
+              <button type="button" className="button-danger" style={{ background: "#ef4444", color: "#ffffff" }} onClick={async () => {
+                const idToDelete = deleteId;
+                setDeleteId(null);
+                await executeDelete(idToDelete);
+              }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="modal-overlay">
+          <div className="modal-content error-modal animate-slide-in">
+            <div className="modal-header">
+              <div className="error-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h3>Action Failed</h3>
+            </div>
+            <div className="modal-body">
+              <p>{error}</p>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="button-danger" onClick={() => setError(null)}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {success && (
+        <div className="toast-container">
+          <div className="toast show">
+            <div className="toast-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div className="toast-message">{success}</div>
+            <button type="button" className="toast-close-btn" onClick={() => setSuccess(null)}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+      )}
       {/* Page Header */}
       <div className="row-between" style={{ borderBottom: "1px solid var(--border)", paddingBottom: "1rem", alignItems: "center" }}>
         <div style={{ display: "flex", gap: "1.25rem", alignItems: "center" }}>
@@ -313,8 +404,9 @@ export default function AuditHistoryTable() {
                   </td>
                   <td>{new Date(item.created_at).toLocaleDateString()}</td>
                   <td>
-                    <div style={{ display: "flex", gap: "0.25rem", justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: "flex", gap: "0.35rem", justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
                       <button type="button" className="small button-secondary" onClick={() => setSelectedAudit(item)}>Details</button>
+                      <button type="button" className="small button-danger" style={{ background: "#ef4444", color: "#ffffff", padding: "0.25rem 0.65rem", fontSize: "0.75rem", borderRadius: "6px" }} onClick={() => setDeleteId(item.id)}>Delete</button>
                     </div>
                   </td>
                 </tr>
@@ -465,7 +557,7 @@ export default function AuditHistoryTable() {
             </div>
           </div>
 
-          {/* Exporter Actions */}
+          {/* Exporter & Delete Actions */}
           <div style={{ display: "flex", gap: "0.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
             <button 
               type="button" 
@@ -479,7 +571,15 @@ export default function AuditHistoryTable() {
               className="button-secondary" 
               onClick={handleExportCSV}
             >
-              Export Excel (CSV)
+              Export Excel
+            </button>
+            <button 
+              type="button" 
+              className="button-danger" 
+              style={{ background: "#ef4444", color: "#ffffff" }}
+              onClick={() => setDeleteId(selectedAudit.id)}
+            >
+              Delete Audit
             </button>
           </div>
         </div>
