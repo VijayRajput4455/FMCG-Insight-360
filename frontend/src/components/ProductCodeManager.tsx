@@ -87,12 +87,14 @@ export default function ProductCodeManager() {
           descriptionText = parsed.note || "";
           category = parsed.category || "Beverages";
           brand = parsed.brand || "Standard";
-          status = parsed.status === "inactive" ? "inactive" : "active";
+          status = ((item.status || parsed.status) === "inactive" ? "inactive" : "active");
         } else {
           descriptionText = item.description || "";
+          status = (item.status === "inactive" ? "inactive" : "active");
         }
       } catch {
         descriptionText = item.description || "";
+        status = (item.status === "inactive" ? "inactive" : "active");
       }
 
       return {
@@ -101,7 +103,7 @@ export default function ProductCodeManager() {
         descriptionText,
         category,
         brand,
-        status,
+        status: (status as "active" | "inactive"),
         created_at: item.created_at,
       };
     });
@@ -143,8 +145,8 @@ export default function ProductCodeManager() {
   }, [query, filterStatus]);
 
   function resetForm() {
-    setForm(EMPTY_FORM);
     setEditingCode(null);
+    setForm(EMPTY_FORM);
   }
 
   function startEdit(item: ParsedProductCode) {
@@ -167,12 +169,12 @@ export default function ProductCodeManager() {
       note: item.descriptionText,
       category: item.category,
       brand: item.brand,
-      status: nextStatus,
     });
     try {
       await updateProductCodeByName(item.product_code, {
         product_code: item.product_code,
         description: serializedDescription,
+        status: nextStatus,
       });
       setSuccessMessage(`SKU "${item.product_code}" ${nextStatus === "active" ? "activated" : "deactivated"} successfully.`);
       await loadProductCodes();
@@ -202,12 +204,14 @@ export default function ProductCodeManager() {
         await updateProductCodeByName(editingCode, {
           product_code: form.product_code.trim(),
           description: serializedDescription,
+          status: form.status,
         });
         setSuccessMessage(`Updated SKU "${form.product_code}" successfully.`);
       } else {
         await createProductCode({
           product_code: form.product_code.trim(),
           description: serializedDescription,
+          status: form.status,
         });
         setSuccessMessage(`Registered SKU "${form.product_code}" successfully.`);
       }

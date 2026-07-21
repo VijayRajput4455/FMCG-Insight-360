@@ -30,6 +30,7 @@ class InferenceService:
         products = (
             db.query(Product)
             .filter(Product.product_code_id == product_code_id)
+            .filter(Product.status == "active")
             .all()
         )
 
@@ -204,8 +205,8 @@ class InferenceService:
         self_count = 0
         competition_count = 0
 
-        # Load products to build the product_map for O(1) attribute lookup
-        products_list = db.query(Product).filter(Product.product_code_id == product_code_id).all()
+        # Load active products to build the product_map for O(1) attribute lookup
+        products_list = db.query(Product).filter(Product.product_code_id == product_code_id).filter(Product.status == "active").all()
         product_map = {p.product_name: p for p in products_list}
 
         for bundle in models:

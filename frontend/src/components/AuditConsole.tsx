@@ -541,7 +541,7 @@ export default function AuditConsole() {
                 required
               >
                 <option value="">-- Choose Category Map --</option>
-                {productCodes.map((code) => (
+                {productCodes.filter(c => c.status !== "inactive").map((code) => (
                   <option key={code.id} value={code.product_code}>{code.product_code}</option>
                 ))}
               </select>

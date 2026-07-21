@@ -471,10 +471,14 @@ def update_product(
         if exists:
             raise HTTPException(status_code=400, detail="AI Code already exists")
 
-    if product_update.product_code_id is not None:
-        product_code = db.query(ProductCode).filter(ProductCode.id == product_update.product_code_id).first()
-        if not product_code:
-            raise HTTPException(status_code=400, detail="Invalid product_code_id")
+    if product_update.status == "active":
+        p_id = product_update.product_code_id or product.product_code_id
+        product_code_obj = db.query(ProductCode).filter(ProductCode.id == p_id).first()
+        if product_code_obj and product_code_obj.status != "active":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unable to activate product '{product.product_name}'. The associated Product Code '{product_code_obj.product_code}' is currently inactive. Please enable Product Code '{product_code_obj.product_code}' to activate this product."
+            )
 
     for key, value in product_update.dict(exclude_unset=True).items():
         setattr(product, key, value)

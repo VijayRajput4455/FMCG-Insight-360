@@ -117,7 +117,7 @@ def get_model(model_id: int, db: Session = Depends(get_db)):
 @router.patch(
 	"/{model_id}/toggle-active",
 	response_model=ModelResponse,
-	responses={404: _ERROR_RESPONSES[404]},
+	responses={400: _ERROR_RESPONSES[400], 404: _ERROR_RESPONSES[404]},
 	summary="Toggle model active/inactive status",
 )
 def toggle_model_active(model_id: int, db: Session = Depends(get_db)):
@@ -125,7 +125,18 @@ def toggle_model_active(model_id: int, db: Session = Depends(get_db)):
 	if not obj:
 		raise HTTPException(status_code=404, detail="Model not found")
 
-	obj.is_active = not obj.is_active
+	target_state = not obj.is_active
+
+	# If attempting to activate the model, verify parent ProductCode is active
+	if target_state:
+		product_code_obj = db.query(ProductCode).filter(ProductCode.id == obj.product_code_id).first()
+		if product_code_obj and product_code_obj.status != "active":
+			raise HTTPException(
+				status_code=400,
+				detail=f"Unable to activate model '{obj.model_name}'. The associated Product Code '{product_code_obj.product_code}' is currently inactive. Please enable Product Code '{product_code_obj.product_code}' to activate this model."
+			)
+
+	obj.is_active = target_state
 	db.commit()
 	db.refresh(obj)
 
@@ -194,6 +205,15 @@ def update_model(
 		if not product_code:
 			raise HTTPException(status_code=400, detail="Invalid product_code_id")
 
+	if updates.get("is_active") is True:
+		p_id = updates.get("product_code_id", obj.product_code_id)
+		product_code_obj = db.query(ProductCode).filter(ProductCode.id == p_id).first()
+		if product_code_obj and product_code_obj.status != "active":
+			raise HTTPException(
+				status_code=400,
+				detail=f"Unable to activate model '{obj.model_name}'. The associated Product Code '{product_code_obj.product_code}' is currently inactive. Please enable Product Code '{product_code_obj.product_code}' to activate this model."
+			)
+
 	if "model_path" in updates:
 		resolved_path = _model_service.resolve_model_path(updates["model_path"])
 		if not os.path.exists(resolved_path):
@@ -239,8 +259,22 @@ def delete_model(model_id: int, db: Session = Depends(get_db)):
 	if not obj:
 		raise HTTPException(status_code=404, detail="Model not found")
 
+	product_code_id = obj.product_code_id
 	db.delete(obj)
 	db.commit()
+
+	if product_code_id:
+		product_code_obj = db.query(ProductCode).filter(ProductCode.id == product_code_id).first()
+		if product_code_obj:
+			active_models_count = db.query(Model).filter(
+				Model.product_code_id == product_code_id,
+				Model.is_active == True
+			).count()
+			if active_models_count == 0:
+				product_code_obj.status = "inactive"
+			else:
+				product_code_obj.status = "active"
+			db.commit()
 
 	logger.info(f"Deleted model id={model_id}")
 	return {"message": "Model deleted successfully"}
@@ -319,6 +353,10 @@ async def upload_model(
 		iou_threshold=iou_threshold,
 	)
 	db.add(obj)
+
+	if product_code and product_code.status != "active":
+		product_code.status = "active"
+
 	db.commit()
 	db.refresh(obj)
 

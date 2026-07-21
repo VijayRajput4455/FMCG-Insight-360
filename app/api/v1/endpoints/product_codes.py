@@ -5,6 +5,7 @@ import logging
 from app.core.database import get_db
 from app.models.product_code import ProductCode
 from app.models.model import Model
+from app.models.product import Product
 from app.schemas.product_code import (
     ProductCodeCreate,
     ProductCodeUpdate,
@@ -124,10 +125,16 @@ def update_by_code(
     for key, value in data.dict(exclude_unset=True).items():
         setattr(obj, key, value)
 
+    # Cascade status change to mapped Products & Models
+    if data.status:
+        is_active_bool = data.status == "active"
+        db.query(Product).filter(Product.product_code_id == obj.id).update({"status": data.status}, synchronize_session=False)
+        db.query(Model).filter(Model.product_code_id == obj.id).update({"is_active": is_active_bool}, synchronize_session=False)
+
     db.commit()
     db.refresh(obj)
 
-    logger.info(f"Updated product_code={product_code}")
+    logger.info(f"Updated product_code={product_code} with status={data.status}")
     return obj
 
 
@@ -153,10 +160,16 @@ def update_product_code(
     for key, value in data.dict(exclude_unset=True).items():
         setattr(obj, key, value)
 
+    # Cascade status change to mapped Products & Models
+    if data.status:
+        is_active_bool = data.status == "active"
+        db.query(Product).filter(Product.product_code_id == code_id).update({"status": data.status}, synchronize_session=False)
+        db.query(Model).filter(Model.product_code_id == code_id).update({"is_active": is_active_bool}, synchronize_session=False)
+
     db.commit()
     db.refresh(obj)
 
-    logger.info(f"Updated product_code id={code_id}")
+    logger.info(f"Updated product_code id={code_id} with status={data.status}")
     return obj
 
 

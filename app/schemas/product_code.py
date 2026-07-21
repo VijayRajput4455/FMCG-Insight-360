@@ -6,17 +6,20 @@ from datetime import datetime
 class ProductCodeCreate(BaseModel):
     product_code: str = Field(..., min_length=1, max_length=50, pattern="^[A-Za-z0-9_-]+$")
     description: Optional[str] = Field(None, max_length=500)
+    status: Optional[str] = Field("active", max_length=20)
 
 
 class ProductCodeUpdate(BaseModel):
     product_code: Optional[str] = Field(None, min_length=1, max_length=50, pattern="^[A-Za-z0-9_-]+$")
     description: Optional[str] = Field(None, max_length=500)
+    status: Optional[str] = Field(None, max_length=20)
 
 
 class ProductCodeResponse(BaseModel):
     id: int
     product_code: str
     description: Optional[str]
+    status: str = "active"
     created_at: datetime
 
     class Config:

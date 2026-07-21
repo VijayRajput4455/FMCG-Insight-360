@@ -24,12 +24,14 @@ export type ProductCode = {
   id: number;
   product_code: string;
   description?: string | null;
+  status?: string;
   created_at: string;
 };
 
 export type ProductCodePayload = {
   product_code: string;
   description?: string;
+  status?: string;
 };
 
 export type AuditStatusResponse = {

@@ -134,6 +134,14 @@ async def startup_db_check():
 
     if ok:
         logger.info(message)
+        # Ensure new columns like product_codes.status exist on existing tables
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE product_codes ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active' NOT NULL;"))
+                conn.commit()
+            logger.info("Database schema migrations verified: product_codes.status column checked.")
+        except Exception as mig_err:
+            logger.warning("Auto-migration notice: %s", mig_err)
     else:
         logger.error(message)
 
