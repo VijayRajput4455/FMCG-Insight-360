@@ -168,11 +168,9 @@ export default function AuditHistoryTable() {
 
   const handleExportCSV = () => {
     if (filteredItems.length === 0) return;
-    const headers = ["Audit ID", "Operator", "Store", "Mapped Code", "Status", "Confidence", "Detections", "Timestamp"];
+    const headers = ["Audit ID", "Mapped Code", "Status", "Confidence", "Detections", "Timestamp"];
     const rows = filteredItems.map(item => [
       item.id,
-      item.operator,
-      item.store,
       item.product_code,
       item.status,
       item.confidence,
@@ -192,8 +190,42 @@ export default function AuditHistoryTable() {
     document.body.removeChild(link);
   };
 
-  const handleDownloadPDF = (item: EnhancedAuditItem) => {
-    window.print();
+  const handleDownloadImage = async (item: EnhancedAuditItem) => {
+    if (!item.imageUrl) return;
+    try {
+      const response = await fetch(item.imageUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `audit_scan_${item.id}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      // Fallback direct link
+      window.open(item.imageUrl, "_blank");
+    }
+  };
+
+  const handleExportDetectionCSV = (item: EnhancedAuditItem) => {
+    const headers = ["Audit ID", "Mapped Code", "Product Class", "Detected Count", "Confidence Score", "Timestamp"];
+    const entries = Object.entries(item.counts);
+    const rows = entries.length > 0
+      ? entries.map(([name, qty]) => [item.id, item.product_code, name, qty, item.confidence, item.created_at])
+      : [[item.id, item.product_code, "N/A", 0, item.confidence, item.created_at]];
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(","), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
+      
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `audit_${item.id}_detection_details.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const executeDelete = async (auditId: number) => {
@@ -279,30 +311,9 @@ export default function AuditHistoryTable() {
       )}
       {/* Page Header */}
       <div className="row-between" style={{ borderBottom: "1px solid var(--border)", paddingBottom: "1rem", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: "1.25rem", alignItems: "center" }}>
-          <div>
-            <span className="kpi-label" style={{ color: "var(--accent-primary)" }}>Records</span>
-            <h2 style={{ fontSize: "1.4rem", fontWeight: 800, margin: "0.25rem 0 0" }}>System Audit History</h2>
-          </div>
-          
-          <div className="segmented" style={{ margin: 0, display: "inline-flex", gap: "0.5rem", padding: "0.35rem", borderRadius: "12px", background: "var(--segmented-bg)", border: "1px solid var(--border)" }}>
-            <button
-              type="button"
-              className={source === "db" ? "seg active" : "seg"}
-              onClick={() => setSource("db")}
-              style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "0.5rem", margin: 0 }}
-            >
-              🗄️ Database Logs
-            </button>
-            <button
-              type="button"
-              className={source === "local" ? "seg active" : "seg"}
-              onClick={() => setSource("local")}
-              style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "0.5rem", margin: 0 }}
-            >
-              ⚡ Session Cache
-            </button>
-          </div>
+        <div>
+          <span className="kpi-label" style={{ color: "var(--accent-primary)" }}>Records</span>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, margin: "0.25rem 0 0" }}>System Audit History</h2>
         </div>
 
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -372,8 +383,6 @@ export default function AuditHistoryTable() {
             <thead>
               <tr>
                 <th>Audit ID</th>
-                <th>Operator</th>
-                <th>Store</th>
                 <th>Image</th>
                 <th>Result Summary</th>
                 <th>Score</th>
@@ -385,8 +394,6 @@ export default function AuditHistoryTable() {
               {filteredItems.map((item) => (
                 <tr key={item.id} className="table-row-hover" onClick={() => setSelectedAudit(item)} style={{ cursor: "pointer" }}>
                   <td><strong>#{item.id}</strong></td>
-                  <td>{item.operator}</td>
-                  <td>{item.store}</td>
                   <td>
                     {item.imageUrl ? (
                       <img 
@@ -480,62 +487,56 @@ export default function AuditHistoryTable() {
           position: "fixed",
           top: 0,
           right: 0,
-          width: "480px",
+          width: "440px",
           height: "100vh",
+          maxHeight: "100vh",
           backgroundColor: "#FFFFFF",
           boxShadow: "-10px 0 30px rgba(0,0,0,0.15)",
           zIndex: 99,
-          padding: "2rem",
+          padding: "1.25rem 1.5rem",
           display: "flex",
           flexDirection: "column",
-          gap: "1.5rem",
+          gap: "1rem",
           borderLeft: "1px solid var(--border)",
+          overflowY: "auto",
           transition: "var(--transition)"
         }}>
           {/* Header */}
-          <div className="row-between" style={{ borderBottom: "1px solid var(--border)", paddingBottom: "1rem", alignItems: "center" }}>
+          <div className="row-between" style={{ borderBottom: "1px solid var(--border)", paddingBottom: "0.75rem", alignItems: "center" }}>
             <div>
-              <span className="kpi-label" style={{ color: "var(--accent-primary)" }}>Scan Details</span>
-              <h3 style={{ margin: "0.25rem 0 0" }}>Audit Run #{selectedAudit.id}</h3>
+              <span className="kpi-label" style={{ color: "var(--accent-primary)", fontSize: "0.72rem" }}>Scan Details</span>
+              <h3 style={{ margin: "0.15rem 0 0", fontSize: "1.2rem" }}>Audit Run #{selectedAudit.id}</h3>
             </div>
             <button 
               type="button" 
               className="small button-secondary"
               onClick={() => setSelectedAudit(null)}
-              style={{ padding: "0.4rem 0.8rem", borderRadius: "99px" }}
+              style={{ padding: "0.35rem 0.75rem", borderRadius: "99px", fontSize: "0.78rem" }}
             >
-              Close Drawer
+              Close
             </button>
           </div>
 
-          {/* Metadata Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", fontSize: "0.85rem" }}>
+          {/* Metadata Grid (Operator & Store removed) */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", fontSize: "0.85rem", background: "var(--bg)", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
             <div>
-              <span className="subtle" style={{ display: "block", fontSize: "0.75rem" }}>OPERATOR</span>
-              <strong>{selectedAudit.operator}</strong>
+              <span className="subtle" style={{ display: "block", fontSize: "0.7rem", fontWeight: 700 }}>CLASSIFICATION SKU</span>
+              <strong style={{ fontSize: "0.95rem" }}>{selectedAudit.product_code}</strong>
             </div>
             <div>
-              <span className="subtle" style={{ display: "block", fontSize: "0.75rem" }}>STORE</span>
-              <strong>{selectedAudit.store}</strong>
-            </div>
-            <div>
-              <span className="subtle" style={{ display: "block", fontSize: "0.75rem" }}>CLASSIFICATION SKU</span>
-              <strong>{selectedAudit.product_code}</strong>
-            </div>
-            <div>
-              <span className="subtle" style={{ display: "block", fontSize: "0.75rem" }}>ACCURACY SCORE</span>
-              <strong style={{ color: "var(--success)" }}>{selectedAudit.confidence}</strong>
+              <span className="subtle" style={{ display: "block", fontSize: "0.7rem", fontWeight: 700 }}>ACCURACY SCORE</span>
+              <strong style={{ color: "var(--success)", fontSize: "0.95rem" }}>{selectedAudit.confidence}</strong>
             </div>
           </div>
 
           {/* Image Preview Container */}
-          <div className="stack" style={{ gap: "0.5rem" }}>
-            <span className="subtle" style={{ fontSize: "0.75rem" }}>ANNOTATED SCAN IMAGE</span>
-            <div style={{ position: "relative", width: "100%", height: "200px", borderRadius: "12px", overflow: "hidden", background: "var(--bg)", border: "1px solid var(--border)" }}>
+          <div className="stack" style={{ gap: "0.35rem" }}>
+            <span className="subtle" style={{ fontSize: "0.72rem", fontWeight: 700 }}>ANNOTATED SCAN IMAGE</span>
+            <div style={{ position: "relative", width: "100%", height: "140px", borderRadius: "10px", overflow: "hidden", background: "var(--bg)", border: "1px solid var(--border)" }}>
               {selectedAudit.imageUrl ? (
                 <img src={selectedAudit.imageUrl} alt="Scan annotated" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
-                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", color: "var(--text-secondary)" }}>
                   No annotated shelf scan image saved.
                 </div>
               )}
@@ -543,9 +544,9 @@ export default function AuditHistoryTable() {
           </div>
 
           {/* Bounding box predictions details */}
-          <div className="stack" style={{ gap: "0.5rem", flexGrow: 1, overflowY: "auto" }}>
-            <span className="subtle" style={{ fontSize: "0.75rem" }}>PREDICTION BREAKDOWN</span>
-            <div className="table-wrap" style={{ maxHeight: "180px" }}>
+          <div className="stack" style={{ gap: "0.35rem", flexGrow: 1 }}>
+            <span className="subtle" style={{ fontSize: "0.72rem", fontWeight: 700 }}>PREDICTION BREAKDOWN</span>
+            <div className="table-wrap" style={{ maxHeight: "140px" }}>
               <table>
                 <thead>
                   <tr>
@@ -565,26 +566,28 @@ export default function AuditHistoryTable() {
             </div>
           </div>
 
-          {/* Exporter & Delete Actions */}
-          <div style={{ display: "flex", gap: "0.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+          {/* Updated Action Buttons */}
+          <div style={{ display: "flex", gap: "0.5rem", borderTop: "1px solid var(--border)", paddingTop: "0.75rem", marginTop: "auto" }}>
             <button 
               type="button" 
-              style={{ flexGrow: 1 }} 
-              onClick={() => handleDownloadPDF(selectedAudit)}
+              style={{ flexGrow: 1, padding: "0.45rem 0.75rem", fontSize: "0.8rem" }} 
+              onClick={() => handleDownloadImage(selectedAudit)}
+              disabled={!selectedAudit.imageUrl}
             >
-              Download PDF report
+              📷 Download Image
             </button>
             <button 
               type="button" 
               className="button-secondary" 
-              onClick={handleExportCSV}
+              style={{ padding: "0.45rem 0.75rem", fontSize: "0.8rem" }}
+              onClick={() => handleExportDetectionCSV(selectedAudit)}
             >
-              Export Excel
+              📊 Export CSV
             </button>
             <button 
               type="button" 
               className="button-danger" 
-              style={{ background: "#ef4444", color: "#ffffff" }}
+              style={{ background: "#ef4444", color: "#ffffff", padding: "0.45rem 0.75rem", fontSize: "0.8rem" }}
               onClick={() => setDeleteId(selectedAudit.id)}
             >
               Delete Audit

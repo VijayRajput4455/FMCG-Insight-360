@@ -21,10 +21,19 @@ export default function HistoryPage() {
           <p style={{ color: "var(--text-secondary)", margin: "0.5rem 0 0", fontSize: "0.9rem", lineHeight: "1.5" }}>
             Track recent requests and refresh their latest backend status.
           </p>
-          <nav className="nav-row" style={{ marginTop: "1rem", display: "flex", gap: "1rem" }}>
-            <Link href="/" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--accent-primary)", textDecoration: "none" }}>New Audit</Link>
-            <Link href="/dashboard" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--accent-primary)", textDecoration: "none" }}>Dashboard</Link>
-            <Link href="/product-codes" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--accent-primary)", textDecoration: "none" }}>Product Codes</Link>
+          <nav className="nav-row" style={{ marginTop: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+            <Link href="/" className="button-primary" style={{ padding: "0.6rem 1.25rem", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 12px rgba(46, 125, 50, 0.25)" }}>
+              ⚡ New Audit
+            </Link>
+            <Link href="/dashboard" className="button-secondary" style={{ padding: "0.6rem 1.25rem", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, textDecoration: "none" }}>
+              📊 Dashboard
+            </Link>
+            <Link href="/products" className="button-secondary" style={{ padding: "0.6rem 1.25rem", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, textDecoration: "none" }}>
+              📦 Product Catalog
+            </Link>
+            <Link href="/product-codes" className="button-secondary" style={{ padding: "0.6rem 1.25rem", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, textDecoration: "none" }}>
+              🏷️ Product Codes
+            </Link>
           </nav>
         </div>
       </section>

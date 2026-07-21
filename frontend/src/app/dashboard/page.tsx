@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { getHistory, type AuditHistoryItem } from "@/lib/history";
-import { listAudits, getAuditStatus, resolveApiAssetUrl, listModels, listProductCodes, type AuditLogItem, type Model, type ProductCode } from "@/lib/api";
+import { listAudits, getAuditStatus, resolveApiAssetUrl, listModels, listProductCodes, listProducts, type AuditLogItem, type Model, type ProductCode, type Product } from "@/lib/api";
 
 type EnhancedDashboardItem = AuditLogItem & {
   confidence: number;
@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [allDbLogs, setAllDbLogs] = useState<AuditLogItem[]>([]);
   const [registeredModels, setRegisteredModels] = useState<Model[]>([]);
   const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState<"week" | "month">("week");
@@ -69,16 +70,18 @@ export default function DashboardPage() {
         const logs = await listAudits(undefined, undefined, 0, 200);
         setAllDbLogs(logs);
 
-        // Fetch models and product codes
+        // Fetch models, product codes, and registered products
         try {
-          const [modelsList, codesList] = await Promise.all([
-            listModels(),
-            listProductCodes()
+          const [modelsList, codesList, productsList] = await Promise.all([
+            listModels().catch(() => []),
+            listProductCodes().catch(() => []),
+            listProducts().catch(() => [])
           ]);
           setRegisteredModels(modelsList);
           setProductCodes(codesList);
+          setProducts(productsList);
         } catch (dbErr) {
-          console.error("Failed to load models or product codes", dbErr);
+          console.error("Failed to load models, product codes, or products", dbErr);
         }
 
         // Fetch detailed results only for the recent 15 audits to speed up loading
@@ -399,41 +402,27 @@ export default function DashboardPage() {
     });
   }, [allDbLogs, registeredModels, productCodes]);
 
-  // 4. Top Category API Hits (starts at 0 hits, pure DB tracking)
+  // 4. Real Category Distribution from Product Catalog
   const categoryHits = useMemo(() => {
-    const categoriesList: Record<string, number> = {
-      "Beverages": 0,
-      "Snacks": 0,
-      "Dairy": 0,
-      "Personal Care": 0,
-      "Other": 0
-    };
-
-    allDbLogs.forEach(log => {
-      const code = (log.product_code || "").toLowerCase();
-      let category = "Other";
-      if (code.includes("coca") || code.includes("pepsi") || code.includes("drink") || code.includes("beverage")) {
-        category = "Beverages";
-      } else if (code.includes("lays") || code.includes("chip") || code.includes("snack") || code.includes("doritos")) {
-        category = "Snacks";
-      } else if (code.includes("milk") || code.includes("cheese") || code.includes("butter") || code.includes("dairy")) {
-        category = "Dairy";
-      } else if (code.includes("soap") || code.includes("colgate") || code.includes("shampoo") || code.includes("care")) {
-        category = "Personal Care";
-      }
-      categoriesList[category] = (categoriesList[category] || 0) + 1;
+    const categoryCounts: Record<string, number> = {};
+    products.forEach((p) => {
+      const cat = p.category ? p.category.trim() : "Uncategorized";
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
     });
 
-    const list = Object.entries(categoriesList)
-      .map(([name, score]) => ({ name, score }))
+    const entries = Object.entries(categoryCounts);
+    const total = products.length;
+
+    const list = entries
+      .map(([name, score]) => ({
+        name,
+        score,
+        percentage: total > 0 ? Math.round((score / total) * 100) : 0
+      }))
       .sort((a, b) => b.score - a.score);
 
-    const maxScore = Math.max(...list.map(i => i.score), 1);
-    return list.map(item => ({
-      ...item,
-      percentage: Math.round((item.score / maxScore) * 100)
-    }));
-  }, [allDbLogs]);
+    return { list, total };
+  }, [products]);
 
   const recentAuditsList = dbItems.slice(0, 5);
 
@@ -798,28 +787,74 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Chart 3: Top Category API Hits */}
+        {/* Chart 3: Product Category Breakdown (Donut Pie Chart) */}
         <section className="card stack" style={{ borderLeft: "4px solid #FB8C00" }}>
-          <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem", marginBottom: "1rem" }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Top Category Hits</h2>
-            <select style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
-              <option>This Week</option>
-              <option>This Month</option>
-            </select>
+          <div className="row-between" style={{ alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "0.75rem", marginBottom: "0.5rem" }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Category Share</h2>
+            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--accent-primary)" }}>
+              {categoryHits.total} SKUs
+            </span>
           </div>
 
-          <div className="stack" style={{ gap: "0.75rem" }}>
-            {categoryHits.slice(0, 5).map((item, idx) => (
-              <div className="row-between" key={item.name} style={{ alignItems: "center", padding: "0.25rem 0" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "var(--accent-light)", color: "var(--accent-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", fontWeight: 800 }}>
-                    {idx + 1}
-                  </div>
-                  <strong style={{ fontSize: "0.85rem" }}>{item.name}</strong>
-                </div>
-                <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--accent-primary)" }}>{item.percentage}%</span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+            {/* Donut Chart SVG */}
+            <div style={{ position: "relative", width: "120px", height: "120px", marginTop: "0.25rem" }}>
+              <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
+                <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--bg)" strokeWidth="16" />
+                {categoryHits.list.reduce<{ segments: React.ReactNode[]; offset: number }>((acc, item, idx) => {
+                  if (item.percentage <= 0) return acc;
+                  const colors = ["#FFA726", "#42A5F5", "#AB47BC", "#26A69A", "#EC407A"];
+                  const dasharray = (item.percentage / 100) * 238.76;
+                  const segment = (
+                    <circle
+                      key={item.name}
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="transparent"
+                      stroke={colors[idx % colors.length]}
+                      strokeWidth="16"
+                      strokeDasharray={`${dasharray} 238.76`}
+                      strokeDashoffset={`-${acc.offset}`}
+                    />
+                  );
+                  return {
+                    segments: [...acc.segments, segment],
+                    offset: acc.offset + dasharray
+                  };
+                }, { segments: [], offset: 0 }).segments}
+              </svg>
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
+                <strong style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text-primary)", display: "block", lineHeight: 1 }}>
+                  {categoryHits.total}
+                </strong>
+                <span className="subtle" style={{ fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase" }}>
+                  SKUs
+                </span>
               </div>
-            ))}
+            </div>
+
+            {/* Compact Legend */}
+            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.35rem", fontSize: "0.78rem" }}>
+              {categoryHits.list.length > 0 ? (
+                categoryHits.list.slice(0, 5).map((item, idx) => {
+                  const colors = ["#FFA726", "#42A5F5", "#AB47BC", "#26A69A", "#EC407A"];
+                  return (
+                    <div key={item.name} className="row-between" style={{ alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                        <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: colors[idx % colors.length] }} />
+                        <span style={{ fontWeight: 600 }}>{item.name}</span>
+                      </div>
+                      <strong style={{ color: "var(--text-secondary)" }}>{item.score} ({item.percentage}%)</strong>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: "0.5rem 0" }}>
+                  No categories found
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
