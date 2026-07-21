@@ -467,39 +467,55 @@ textarea {
 /* --- Segmented Control --- */
 .segmented {
   display: inline-flex;
-  padding: 0.25rem;
-  border-radius: 10px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--segmented-bg);
+  box-shadow: var(--shadow-sm);
   margin-bottom: 1rem;
 }
 
-.seg {
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 0.4rem 1rem;
-  border-radius: 7px;
-  font-weight: 600;
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: var(--transition);
-  position: relative;
+button.seg {
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  padding: 0.55rem 1.25rem !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  cursor: pointer !important;
+  transition: var(--transition) !important;
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  text-align: center !important;
+  box-shadow: none !important;
 }
 
-.seg.active {
-  background: var(--segmented-active-bg);
-  color: var(--accent-primary);
-  box-shadow: var(--shadow-sm);
+button.seg:hover:not(.active) {
+  color: var(--text-primary) !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+  box-shadow: none !important;
 }
 
-.seg.active::after {
+button.seg.active {
+  background: var(--segmented-active-bg) !important;
+  color: var(--accent-primary) !important;
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.15) !important;
+  font-weight: 800 !important;
+}
+
+button.seg.active::after {
   content: "";
   position: absolute;
   left: 10px;
   right: 10px;
-  bottom: 4px;
-  height: 2px;
+  bottom: 3px;
+  height: 2.5px;
   border-radius: 99px;
   background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
 }

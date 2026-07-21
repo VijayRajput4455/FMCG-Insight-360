@@ -285,30 +285,38 @@ export default function AuditHistoryTable() {
             <h2 style={{ fontSize: "1.4rem", fontWeight: 800, margin: "0.25rem 0 0" }}>System Audit History</h2>
           </div>
           
-          <div className="segmented" style={{ margin: 0 }}>
+          <div className="segmented" style={{ margin: 0, display: "inline-flex", gap: "0.5rem", padding: "0.35rem", borderRadius: "12px", background: "var(--segmented-bg)", border: "1px solid var(--border)" }}>
             <button
               type="button"
               className={source === "db" ? "seg active" : "seg"}
               onClick={() => setSource("db")}
+              style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "0.5rem", margin: 0 }}
             >
-              Database Logs
+              🗄️ Database Logs
             </button>
             <button
               type="button"
               className={source === "local" ? "seg active" : "seg"}
               onClick={() => setSource("local")}
+              style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "0.5rem", margin: 0 }}
             >
-              Session Cache
+              ⚡ Session Cache
             </button>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           {/* Card / Table Toggle */}
-          <div className="segmented" style={{ margin: 0 }}>
-            <button type="button" className={`seg ${viewMode === "table" ? "active" : ""}`} onClick={() => setViewMode("table")}>Table</button>
-            <button type="button" className={`seg ${viewMode === "card" ? "active" : ""}`} onClick={() => setViewMode("card")}>Grid</button>
-            <button type="button" className={`seg ${viewMode === "timeline" ? "active" : ""}`} onClick={() => setViewMode("timeline")}>Timeline</button>
+          <div className="segmented" style={{ margin: 0, display: "inline-flex", gap: "0.5rem", padding: "0.35rem", borderRadius: "12px", background: "var(--segmented-bg)", border: "1px solid var(--border)" }}>
+            <button type="button" className={`seg ${viewMode === "table" ? "active" : ""}`} onClick={() => setViewMode("table")} style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "0.5rem", margin: 0 }}>
+              📊 Table
+            </button>
+            <button type="button" className={`seg ${viewMode === "card" ? "active" : ""}`} onClick={() => setViewMode("card")} style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "0.5rem", margin: 0 }}>
+              🎴 Grid
+            </button>
+            <button type="button" className={`seg ${viewMode === "timeline" ? "active" : ""}`} onClick={() => setViewMode("timeline")} style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "0.5rem", margin: 0 }}>
+              🕒 Timeline
+            </button>
           </div>
           <button type="button" className="button-secondary" style={{ boxShadow: "var(--shadow-sm)" }} onClick={handleExportCSV}>
             Export Excel

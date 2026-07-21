@@ -42,7 +42,10 @@ export default function DashboardPage() {
   }, [hoveredIdx, timeRange]);
 
   const statusStats = useMemo(() => {
-    const total = allDbLogs.length + localItems.length;
+    const uniqueLocal = localItems.filter(
+      (local) => !allDbLogs.some((db) => db.id === local.auditId)
+    );
+    const total = allDbLogs.length + uniqueLocal.length;
     if (total === 0) {
       return { completedPct: 78, pendingPct: 12, failedPct: 10, completedCount: 0, pendingCount: 0, failedCount: 0 };
     }
@@ -163,7 +166,11 @@ export default function DashboardPage() {
 
   // 1. Calculate Actual KPI Metrics (Using the entire list of 1000 logs)
   const kpis = useMemo(() => {
-    const total = allDbLogs.length + localItems.length;
+    // Exclude local items whose auditId already exists in database logs to prevent double counting
+    const uniqueLocalItems = localItems.filter(
+      (local) => !allDbLogs.some((db) => db.id === local.auditId)
+    );
+    const total = allDbLogs.length + uniqueLocalItems.length;
     const completedLogs = allDbLogs.filter(i => i.status === "completed");
     const failedLogs = allDbLogs.filter(i => i.status === "failed");
 
@@ -469,7 +476,7 @@ export default function DashboardPage() {
           <div className="stack" style={{ gap: "0.25rem" }}>
             <span className="kpi-label" style={{ color: "#C62828", fontWeight: 700 }}>Total Audits</span>
             <strong className="kpi-value" style={{ fontSize: "1.6rem", display: "block", color: "#1B1B1B" }}>{kpis.total}</strong>
-            <span style={{ fontSize: "0.78rem", color: "#1565C0", fontWeight: 700 }}>
+            <span style={{ fontSize: "0.78rem", color: "#C62828", fontWeight: 700 }}>
               {kpis.total > 0 ? `↑ +${deltas.totalDelta} runs vs last week` : "No audits recorded"}
             </span>
           </div>
