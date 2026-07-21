@@ -38,6 +38,7 @@ export default function ProductCatalogManager() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterBrand, setFilterBrand] = useState("all");
   const [filterSku, setFilterSku] = useState("all");
+  const [filterType, setFilterType] = useState("all");
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   // Bulk operation file states
@@ -117,6 +118,14 @@ export default function ProductCatalogManager() {
     return products.filter(p => p.ai_code && p.ai_code.trim() !== "").length;
   }, [products]);
 
+  const selfProductCount = useMemo(() => {
+    return products.filter(p => p.type !== "competitor").length;
+  }, [products]);
+
+  const competitorProductCount = useMemo(() => {
+    return products.filter(p => p.type === "competitor").length;
+  }, [products]);
+
   // Process products for UI
   const items = useMemo(() => {
     return products.map(p => {
@@ -145,10 +154,11 @@ export default function ProductCatalogManager() {
       const matchesCategory = filterCategory === "all" || item.category === filterCategory;
       const matchesBrand = filterBrand === "all" || item.brand === filterBrand;
       const matchesSku = filterSku === "all" || String(item.product_code_id) === filterSku;
+      const matchesType = filterType === "all" || (filterType === "self" ? item.type !== "competitor" : item.type === "competitor");
 
-      return matchesQuery && matchesCategory && matchesBrand && matchesSku;
+      return matchesQuery && matchesCategory && matchesBrand && matchesSku && matchesType;
     });
-  }, [items, query, filterCategory, filterBrand, filterSku, getProductCodeName]);
+  }, [items, query, filterCategory, filterBrand, filterSku, filterType, getProductCodeName]);
 
   const resetForm = () => {
     setEditId(null);
@@ -357,7 +367,7 @@ export default function ProductCatalogManager() {
         <div className="kpi-card" style={{ borderLeft: "4px solid #E53935", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF3F3 40%, #FFCDD2 70%, #EF5350 100%)", boxShadow: "var(--shadow-sm)" }}>
           <span className="kpi-label" style={{ color: "#C62828", fontWeight: 700 }}>Total Products</span>
           <strong className="kpi-value" style={{ color: "#1B1B1B" }}>{products.length}</strong>
-          <span className="kpi-sub" style={{ color: "#B71C1C", fontWeight: 500 }}>Total database SKU records</span>
+          <span className="kpi-sub" style={{ color: "#B71C1C", fontWeight: 700 }}>🏷️ {selfProductCount} Self | 🥊 {competitorProductCount} Competitors</span>
         </div>
         <div className="kpi-card" style={{ borderLeft: "4px solid #1E88E5", background: "linear-gradient(180deg, #FFFFFF 0%, #F1F8FF 40%, #B3E5FC 70%, #42A5F5 100%)", boxShadow: "var(--shadow-sm)" }}>
           <span className="kpi-label" style={{ color: "#0D47A1", fontWeight: 700 }}>Total Brands</span>
@@ -428,6 +438,15 @@ export default function ProductCatalogManager() {
               {uniqueSkuCodes.map((s) => (
                 <option key={s.id} value={String(s.id)}>{s.codeName}</option>
               ))}
+            </select>
+            <select 
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              style={{ borderRadius: "99px", padding: "0.5rem 0.85rem", fontSize: "0.82rem", border: "1px solid var(--border)" }}
+            >
+              <option value="all">All Product Types</option>
+              <option value="self">Self (Own Product)</option>
+              <option value="competitor">Competitor Product</option>
             </select>
           </div>
 
@@ -555,6 +574,7 @@ export default function ProductCatalogManager() {
               <thead>
                 <tr>
                   <th style={{ paddingLeft: "1.5rem" }}>Product Name</th>
+                  <th>Ownership Type</th>
                   <th>Brand</th>
                   <th>Category</th>
                   <th>AI Code</th>
@@ -567,6 +587,7 @@ export default function ProductCatalogManager() {
               <tbody>
                 {filteredItems.map((p) => {
                   const initials = p.product_name.substring(0, 2).toUpperCase();
+                  const isCompetitor = p.type === "competitor";
                   return (
                     <tr key={p.id} className="table-row-hover">
                       <td style={{ paddingLeft: "1.5rem" }}>
@@ -576,9 +597,11 @@ export default function ProductCatalogManager() {
                             width: "36px",
                             height: "36px",
                             fontSize: "0.8rem",
-                            background: "linear-gradient(135deg, var(--accent-light) 0%, var(--accent-glow) 100%)",
+                            background: isCompetitor 
+                              ? "linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)" 
+                              : "linear-gradient(135deg, var(--accent-light) 0%, var(--accent-glow) 100%)",
                             border: "1px solid var(--border)",
-                            color: "var(--accent-primary)"
+                            color: isCompetitor ? "#C62828" : "var(--accent-primary)"
                           }}>
                             {initials}
                           </div>
@@ -589,6 +612,22 @@ export default function ProductCatalogManager() {
                             </div>
                           </div>
                         </div>
+                      </td>
+                      <td>
+                        <span style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.35rem",
+                          padding: "0.25rem 0.65rem",
+                          borderRadius: "99px",
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          background: isCompetitor ? "#FFF3F3" : "#E8F5E9",
+                          color: isCompetitor ? "#C62828" : "#2E7D32",
+                          border: `1px solid ${isCompetitor ? "#FFCDD2" : "#A5D6A7"}`
+                        }}>
+                          <span>{isCompetitor ? "🥊 Competitor" : "🏷️ Self Product"}</span>
+                        </span>
                       </td>
                       <td>{p.brand || "-"}</td>
                       <td>{p.category || "-"}</td>
