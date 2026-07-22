@@ -6,7 +6,55 @@ import { getHistory, clearHistory } from "@/lib/history";
 
 type SettingsTab = "general" | "ai" | "export" | "system" | "appearance";
 
+const ToggleSwitch = ({
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange?: (checked: boolean) => void;
+  disabled?: boolean;
+}) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    disabled={disabled}
+    onClick={() => !disabled && onChange && onChange(!checked)}
+    style={{
+      position: "relative",
+      display: "inline-flex",
+      height: "26px",
+      width: "48px",
+      flexShrink: 0,
+      cursor: disabled ? "not-allowed" : "pointer",
+      borderRadius: "99px",
+      border: "2px solid transparent",
+      transition: "background-color 0.25s ease-in-out",
+      background: checked ? "var(--accent-primary)" : "var(--border)",
+      opacity: disabled ? 0.6 : 1,
+      padding: 0,
+      boxShadow: checked ? "0 2px 8px var(--accent-glow)" : "none",
+    }}
+  >
+    <span
+      style={{
+        pointerEvents: "none",
+        display: "inline-block",
+        height: "22px",
+        width: "22px",
+        borderRadius: "50%",
+        background: "#FFFFFF",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+        transition: "transform 0.25s ease-in-out",
+        transform: checked ? "translateX(22px)" : "translateX(0px)",
+      }}
+    />
+  </button>
+);
+
 export default function SettingsPage() {
+
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
 
   // General Settings State
@@ -293,38 +341,113 @@ export default function SettingsPage() {
         }}
         className="detail-grid"
       >
-        <div className="card" style={{ padding: "1rem 1.25rem", borderLeft: "4px solid var(--accent-primary)" }}>
-          <span className="subtle" style={{ fontSize: "0.75rem" }}>API Connection</span>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.3rem" }}>
+        {/* Card 1: API Connection */}
+
+        <div
+          className="kpi-card"
+          style={{
+            padding: "1.25rem 1.5rem",
+            background: healthStatus === "online" 
+              ? "linear-gradient(180deg, #FFFFFF 0%, #F1F9F1 30%, #C8E6C9 65%, #66BB6A 100%)" 
+              : "linear-gradient(180deg, #FFFFFF 0%, #FFF3F3 30%, #FFCDD2 65%, #EF5350 100%)",
+            borderLeft: `4px solid ${healthStatus === "online" ? "#43A047" : "#E53935"}`,
+            borderRadius: "12px",
+            boxShadow: "var(--shadow-sm)",
+          }}
+        >
+          <span className="kpi-label" style={{ fontSize: "0.75rem", fontWeight: 800, color: healthStatus === "online" ? "#1B5E20" : "#C62828", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            API Connection
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.4rem" }}>
             <span
               style={{
-                width: "10px",
-                height: "10px",
+                width: "12px",
+                height: "12px",
                 borderRadius: "50%",
                 background: healthStatus === "online" ? "#2E7D32" : healthStatus === "checking" ? "#F57C00" : "#C62828",
+                boxShadow: healthStatus === "online" ? "0 0 10px rgba(46, 125, 50, 0.6)" : "none",
               }}
             />
-            <strong style={{ fontSize: "0.95rem" }}>{healthStatus === "online" ? "Online" : healthStatus === "checking" ? "Checking..." : "Offline"}</strong>
+            <strong style={{ fontSize: "1.3rem", fontWeight: 800, color: "#1B1B1B" }}>
+              {healthStatus === "online" ? "Online" : healthStatus === "checking" ? "Checking..." : "Offline"}
+            </strong>
           </div>
+          <span style={{ fontSize: "0.78rem", color: healthStatus === "online" ? "#1B5E20" : "#C62828", fontWeight: 700, marginTop: "0.2rem", display: "block" }}>
+            Backend API endpoint health
+          </span>
         </div>
 
-        <div className="card" style={{ padding: "1rem 1.25rem", borderLeft: "4px solid #1565C0" }}>
-          <span className="subtle" style={{ fontSize: "0.75rem" }}>Active AI Models</span>
-          <strong style={{ display: "block", fontSize: "1.2rem", marginTop: "0.2rem" }}>{stats.activeModels} Loaded</strong>
+        {/* Card 2: Active AI Models (Blue) */}
+        <div
+          className="kpi-card"
+          style={{
+            padding: "1.25rem 1.5rem",
+            background: "linear-gradient(180deg, #FFFFFF 0%, #F1F8FF 30%, #B3E5FC 65%, #42A5F5 100%)",
+            borderLeft: "4px solid #1E88E5",
+            borderRadius: "12px",
+            boxShadow: "var(--shadow-sm)",
+          }}
+        >
+          <span className="kpi-label" style={{ fontSize: "0.75rem", fontWeight: 800, color: "#0D47A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Active AI Models
+          </span>
+          <strong style={{ display: "block", fontSize: "1.3rem", fontWeight: 800, marginTop: "0.4rem", color: "#1B1B1B" }}>
+            {stats.activeModels} Loaded
+          </strong>
+          <span style={{ fontSize: "0.78rem", color: "#0D47A1", fontWeight: 700, marginTop: "0.2rem", display: "block" }}>
+            Neural model instances active
+          </span>
         </div>
 
-        <div className="card" style={{ padding: "1rem 1.25rem", borderLeft: "4px solid #7B1FA2" }}>
-          <span className="subtle" style={{ fontSize: "0.75rem" }}>Product Codes</span>
-          <strong style={{ display: "block", fontSize: "1.2rem", marginTop: "0.2rem" }}>{stats.totalProductCodes} Catalog SKUs</strong>
+        {/* Card 3: Product Codes (Green) */}
+        <div
+          className="kpi-card"
+          style={{
+            padding: "1.25rem 1.5rem",
+            background: "linear-gradient(180deg, #FFFFFF 0%, #F1F9F1 30%, #C8E6C9 65%, #66BB6A 100%)",
+            borderLeft: "4px solid #43A047",
+            borderRadius: "12px",
+            boxShadow: "var(--shadow-sm)",
+          }}
+        >
+          <span className="kpi-label" style={{ fontSize: "0.75rem", fontWeight: 800, color: "#1B5E20", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Product Codes
+          </span>
+          <strong style={{ display: "block", fontSize: "1.3rem", fontWeight: 800, marginTop: "0.4rem", color: "#1B1B1B" }}>
+            {stats.totalProductCodes} Catalog SKUs
+          </strong>
+          <span style={{ fontSize: "0.78rem", color: "#1B5E20", fontWeight: 700, marginTop: "0.2rem", display: "block" }}>
+            Total database SKU mappings
+          </span>
         </div>
 
-        <div className="card" style={{ padding: "1rem 1.25rem", borderLeft: "4px solid #E65100" }}>
-          <span className="subtle" style={{ fontSize: "0.75rem" }}>Local History Cache</span>
-          <strong style={{ display: "block", fontSize: "1.2rem", marginTop: "0.2rem" }}>{stats.localHistoryCount} Scans</strong>
+        {/* Card 4: Local History Cache (Orange) */}
+        <div
+          className="kpi-card"
+          style={{
+            padding: "1.25rem 1.5rem",
+            background: "linear-gradient(180deg, #FFFFFF 0%, #FFF8F1 30%, #FFE0B2 65%, #FFA726 100%)",
+            borderLeft: "4px solid #FB8C00",
+            borderRadius: "12px",
+            boxShadow: "var(--shadow-sm)",
+          }}
+        >
+          <span className="kpi-label" style={{ fontSize: "0.75rem", fontWeight: 800, color: "#E65100", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Local History Cache
+          </span>
+          <strong style={{ display: "block", fontSize: "1.3rem", fontWeight: 800, marginTop: "0.4rem", color: "#1B1B1B" }}>
+            {stats.localHistoryCount} Scans
+          </strong>
+          <span style={{ fontSize: "0.78rem", color: "#E65100", fontWeight: 700, marginTop: "0.2rem", display: "block" }}>
+            Locally stored audit runs
+          </span>
         </div>
       </div>
 
+
       {/* Navigation Tabs */}
+
+
       <div className="settings-tabs" style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
         {[
           { key: "general", label: "⚙️ General", desc: "Console details" },
@@ -513,11 +636,9 @@ export default function SettingsPage() {
                     Sequentially merge predictions when multiple models map to 1 Product Code.
                   </span>
                 </div>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
                   checked={enableMultiModelNms}
-                  onChange={(e) => setEnableMultiModelNms(e.target.checked)}
-                  style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                  onChange={(val) => setEnableMultiModelNms(val)}
                 />
               </div>
 
@@ -528,7 +649,7 @@ export default function SettingsPage() {
                     Render all model predictions onto 1 unified image.
                   </span>
                 </div>
-                <input type="checkbox" checked disabled style={{ width: "18px", height: "18px" }} />
+                <ToggleSwitch checked={true} disabled={true} />
               </div>
             </div>
           </div>
@@ -576,11 +697,9 @@ export default function SettingsPage() {
                     Embed Raw & Detected image URLs in generated CSV/JSON reports.
                   </span>
                 </div>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
                   checked={includeImageUrls}
-                  onChange={(e) => setIncludeImageUrls(e.target.checked)}
-                  style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                  onChange={(val) => setIncludeImageUrls(val)}
                 />
               </div>
             </div>
@@ -626,20 +745,18 @@ export default function SettingsPage() {
                   <strong style={{ fontSize: "0.95rem", display: "block" }}>Dark Mode Theme</strong>
                   <span className="subtle" style={{ fontSize: "0.78rem" }}>Toggle dark background palette for console UI.</span>
                 </div>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
                   checked={darkMode}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setDarkMode(checked);
-                    const nextTheme = checked ? "dark" : "light";
+                  onChange={(val) => {
+                    setDarkMode(val);
+                    const nextTheme = val ? "dark" : "light";
                     document.documentElement.setAttribute("data-theme", nextTheme);
                     localStorage.setItem("theme", nextTheme);
                     window.dispatchEvent(new Event("themechange"));
                   }}
-                  style={{ width: "18px", height: "18px", cursor: "pointer" }}
                 />
               </div>
+
 
               <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
                 <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)" }}>Accent Palette Preset</span>

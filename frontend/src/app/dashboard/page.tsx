@@ -22,25 +22,28 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [timeRange, setTimeRange] = useState<"week" | "month">("week");
+  const [timeRange, setTimeRange] = useState<"week" | "month" | "year">("week");
 
   const hoveredDateStr = useMemo(() => {
     if (hoveredIdx === null) return "";
-    const isMonth = timeRange === "month";
     const today = new Date();
-    if (isMonth) {
+    if (timeRange === "year") {
+      const d = new Date(today.getFullYear(), hoveredIdx, 1);
+      return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    } else if (timeRange === "month") {
       const d = new Date();
       d.setDate(today.getDate() - (29 - hoveredIdx));
-      return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+      return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
     } else {
       const day = today.getDay();
       const diff = today.getDate() - day + (day === 0 ? -6 : 1);
       const monday = new Date(today.setDate(diff));
       const d = new Date(monday);
       d.setDate(monday.getDate() + hoveredIdx);
-      return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+      return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
     }
   }, [hoveredIdx, timeRange]);
+
 
   const statusStats = useMemo(() => {
     const uniqueLocal = localItems.filter(
@@ -280,28 +283,39 @@ export default function DashboardPage() {
     };
   }, [allDbLogs, dbItems]);
 
-  // 2. Weekly Area Line Chart coordinates (Starts at 0, no default curves)
+  // 2. Weekly/Monthly/Yearly Area Line Chart coordinates (Starts at 0)
   const trendChartData = useMemo(() => {
+    const isYear = timeRange === "year";
     const isMonth = timeRange === "month";
-    const numPoints = isMonth ? 30 : 7;
+    const numPoints = isYear ? 12 : isMonth ? 30 : 7;
     const counts = Array(numPoints).fill(0);
     const labels: string[] = [];
     const today = new Date();
-    
-    if (isMonth) {
+
+    if (isYear) {
+      // 12 Months of Current Year
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      for (let i = 0; i < 12; i++) {
+        labels[i] = monthNames[i];
+        counts[i] = allDbLogs.filter((item) => {
+          const dt = new Date(item.created_at);
+          return dt.getFullYear() === today.getFullYear() && dt.getMonth() === i;
+        }).length;
+      }
+    } else if (isMonth) {
       // Last 30 days
       for (let i = 29; i >= 0; i--) {
         const d = new Date();
         d.setDate(today.getDate() - i);
         const dateStr = d.toDateString();
-        
+
         // Show labels for index multiples of 5 to avoid overlap
         if (i % 5 === 0 || i === 29) {
           labels[29 - i] = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         } else {
           labels[29 - i] = "";
         }
-        
+
         counts[29 - i] = allDbLogs.filter(
           (item) => new Date(item.created_at).toDateString() === dateStr
         ).length;
@@ -311,18 +325,19 @@ export default function DashboardPage() {
       const day = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
       const diff = today.getDate() - day + (day === 0 ? -6 : 1);
       const monday = new Date(today.setDate(diff));
-      
+
       for (let i = 0; i < 7; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
         const dateStr = d.toDateString();
         labels[i] = d.toLocaleDateString(undefined, { weekday: 'short' });
-        
+
         counts[i] = allDbLogs.filter(
           (item) => new Date(item.created_at).toDateString() === dateStr
         ).length;
       }
     }
+
 
     const max = Math.max(...counts, 10); // Nice max
     let niceMax = 10;
@@ -448,14 +463,58 @@ export default function DashboardPage() {
           </p>
         </div>
         
-        {/* Date Display */}
-        <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", background: "#FFFFFF", padding: "0.5rem 1rem", borderRadius: "99px", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span>{new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })}</span>
+        {/* Right Header Section: Date & Time Window Selector */}
+        <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.65rem" }}>
+          {/* Date Display */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg)", padding: "0.45rem 1rem", borderRadius: "99px", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>{new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })}</span>
+          </div>
+
+          {/* Time Window Selector Buttons directly below Date */}
+          <div
+            className="segmented"
+            style={{
+              margin: 0,
+              display: "inline-flex",
+              gap: "0.25rem",
+              padding: "0.25rem",
+              borderRadius: "10px",
+              background: "var(--segmented-bg)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <button
+              type="button"
+              className={timeRange === "week" ? "seg active" : "seg"}
+              onClick={() => setTimeRange("week")}
+              style={{ padding: "0.4rem 0.9rem", borderRadius: "7px", fontSize: "0.78rem", fontWeight: 800 }}
+            >
+              📅 This Week
+            </button>
+            <button
+              type="button"
+              className={timeRange === "month" ? "seg active" : "seg"}
+              onClick={() => setTimeRange("month")}
+              style={{ padding: "0.4rem 0.9rem", borderRadius: "7px", fontSize: "0.78rem", fontWeight: 800 }}
+            >
+              🗓️ This Month
+            </button>
+            <button
+              type="button"
+              className={timeRange === "year" ? "seg active" : "seg"}
+              onClick={() => setTimeRange("year")}
+              style={{ padding: "0.4rem 0.9rem", borderRadius: "7px", fontSize: "0.78rem", fontWeight: 800 }}
+            >
+              📊 This Year
+            </button>
+          </div>
         </div>
       </section>
 
+
       {/* KPI Cards Grid */}
+
       <section className="kpi-grid">
         {/* Card 1: Total Audits (Red) */}
         <div className="kpi-card" style={{ display: "flex", flexDirection: "row", gap: "1.25rem", alignItems: "center", padding: "1.5rem", borderLeft: "4px solid #E53935", background: "linear-gradient(180deg, #FFFFFF 0%, #FFF3F3 40%, #FFCDD2 70%, #EF5350 100%)", boxShadow: "var(--shadow-sm)" }}>

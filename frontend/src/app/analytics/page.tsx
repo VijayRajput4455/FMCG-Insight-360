@@ -486,8 +486,10 @@ export default function AnalyticsPage() {
           gap: "1rem",
           borderRadius: "14px",
           border: "1px solid var(--border)",
+          borderLeft: "4px solid var(--accent-primary)",
         }}
       >
+
         {/* Left Filter: Catalog Entity Status */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)" }}>
