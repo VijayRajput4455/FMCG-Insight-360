@@ -1,71 +1,139 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getApiBaseUrl, listAudits, listModels, listProductCodes } from "@/lib/api";
+import { getHistory, clearHistory } from "@/lib/history";
 
-type SettingsTab = "general" | "branding" | "users" | "roles" | "notifications" | "ai" | "system";
+type SettingsTab = "general" | "ai" | "export" | "system" | "appearance";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
-  
-  // Toggles
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [smsNotif, setSmsNotif] = useState(false);
-  const [soundAlerts, setSoundAlerts] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
-  const [saveFrames, setSaveFrames] = useState(true);
 
-  // Form inputs
+  // General Settings State
   const [systemName, setSystemName] = useState("FMCG Insight 360");
-  const [companyName, setCompanyName] = useState("FMCG Global Ltd");
+  const [companyName, setCompanyName] = useState("Global Retail Corp");
   const [timezone, setTimezone] = useState("UTC+5:30");
   const [language, setLanguage] = useState("en");
-  const [themeColor, setThemeColor] = useState("#2E7D32");
-  
-  // AI thresholds
-  const [confThreshold, setConfThreshold] = useState(0.25);
-  const [iouThreshold, setIouThreshold] = useState(0.45);
-  const [imageSize, setImageSize] = useState("640");
-  const [minPassRate, setMinPassRate] = useState(95);
 
-  // System Queue
-  const [rabbitmqHost, setRabbitmqHost] = useState("127.0.0.1");
-  const [rabbitmqPort, setRabbitmqPort] = useState("5672");
-  const [redisHost, setRedisHost] = useState("127.0.0.1");
-  const [redisPort, setRedisPort] = useState("6379");
-  
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  
+  // AI & Multi-Model Inference Defaults
+  const [confThreshold, setConfThreshold] = useState<number>(0.25);
+  const [iouThreshold, setIouThreshold] = useState<number>(0.40);
+  const [defaultImgSize, setDefaultImgSize] = useState<string>("1280");
+  const [enableMultiModelNms, setEnableMultiModelNms] = useState<boolean>(true);
+  const [maxLocalHistory, setMaxLocalHistory] = useState<number>(100);
+
+  // Export & Archiving Preferences
+  const [defaultExportFormat, setDefaultExportFormat] = useState<"csv" | "json">("csv");
+  const [csvDelimiter, setCsvDelimiter] = useState<string>(",");
+  const [includeImageUrls, setIncludeImageUrls] = useState<boolean>(true);
+
+  // Infrastructure & Diagnostics
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>("");
+  const [healthStatus, setHealthStatus] = useState<"checking" | "online" | "offline">("checking");
+  const [healthMessage, setHealthMessage] = useState<string>("");
+  const [stats, setStats] = useState<{ totalAudits: number; activeModels: number; totalProductCodes: number; localHistoryCount: number }>({
+    totalAudits: 0,
+    activeModels: 0,
+    totalProductCodes: 0,
+    localHistoryCount: 0,
+  });
+
+  // Appearance & Theme
+  const [darkMode, setDarkMode] = useState<boolean>(false);
   const [activeAccent, setActiveAccent] = useState<"green" | "red" | "blue" | "orange">("green");
 
-  useEffect(() => {
-    const syncChecked = () => {
-      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-      setDarkMode(isDark);
-    };
-    syncChecked();
-    window.addEventListener("themechange", syncChecked);
-    
-    const syncAccent = () => {
-      const savedAccent = localStorage.getItem("accent-theme") as any;
-      if (savedAccent && ["green", "red", "blue", "orange"].includes(savedAccent)) {
-        setActiveAccent(savedAccent);
-      }
-    };
-    syncAccent();
-    window.addEventListener("accentthemechange", syncAccent);
+  // UI Feedback States
+  const [saving, setSaving] = useState<boolean>(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-    return () => {
-      window.removeEventListener("themechange", syncChecked);
-      window.removeEventListener("accentthemechange", syncAccent);
-    };
+  // Load saved settings from localStorage on mount
+  useEffect(() => {
+    setApiBaseUrl(getApiBaseUrl());
+
+    // Load AI thresholds
+    const savedConf = localStorage.getItem("fmcg_conf_threshold");
+    if (savedConf) setConfThreshold(parseFloat(savedConf));
+
+    const savedIou = localStorage.getItem("fmcg_iou_threshold");
+    if (savedIou) setIouThreshold(parseFloat(savedIou));
+
+    const savedSize = localStorage.getItem("fmcg_default_img_size");
+    if (savedSize) setDefaultImgSize(savedSize);
+
+    const savedNms = localStorage.getItem("fmcg_multi_model_nms");
+    if (savedNms !== null) setEnableMultiModelNms(savedNms === "true");
+
+    const savedExportFormat = localStorage.getItem("fmcg_export_format");
+    if (savedExportFormat === "csv" || savedExportFormat === "json") setDefaultExportFormat(savedExportFormat);
+
+    const savedSystemName = localStorage.getItem("fmcg_system_name");
+    if (savedSystemName) setSystemName(savedSystemName);
+
+    const savedCompanyName = localStorage.getItem("fmcg_company_name");
+    if (savedCompanyName) setCompanyName(savedCompanyName);
+
+    // Theme setup
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    setDarkMode(isDark);
+
+    const savedAccent = localStorage.getItem("accent-theme") as "green" | "red" | "blue" | "orange" | null;
+    if (savedAccent && ["green", "red", "blue", "orange"].includes(savedAccent)) {
+      setActiveAccent(savedAccent);
+    }
+
+    // Run Health Check & Fetch System Metrics
+    void runHealthCheck();
+    void fetchSystemStats();
   }, []);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const runHealthCheck = async () => {
+    setHealthStatus("checking");
+    try {
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/docs`, { method: "HEAD" });
+      if (res.ok || res.status === 200 || res.status === 404) {
+        setHealthStatus("online");
+        setHealthMessage(`Connected to backend API at ${baseUrl}`);
+      } else {
+        setHealthStatus("offline");
+        setHealthMessage(`API responded with status code ${res.status}`);
+      }
+    } catch {
+      setHealthStatus("offline");
+      setHealthMessage(`Unable to connect to backend at ${getApiBaseUrl()}`);
+    }
+  };
+
+  const fetchSystemStats = async () => {
+    try {
+      const [audits, models, codes] = await Promise.all([
+        listAudits(undefined, undefined, 0, 100).catch(() => []),
+        listModels().catch(() => []),
+        listProductCodes().catch(() => []),
+      ]);
+
+
+      const localItems = getHistory();
+      setStats({
+        totalAudits: Array.isArray(audits) ? audits.length : 0,
+        activeModels: Array.isArray(models) ? models.length : 0,
+        totalProductCodes: Array.isArray(codes) ? codes.length : 0,
+        localHistoryCount: localItems.length,
+      });
+    } catch {
+      // Fallback
+    }
+  };
 
   const handleAccentChange = (color: "green" | "red" | "blue" | "orange") => {
     setActiveAccent(color);
     localStorage.setItem("accent-theme", color);
-    
+
     const presets = {
       green: {
         primary: "#2E7D32",
@@ -73,7 +141,7 @@ export default function SettingsPage() {
         light: "#E8F5E9",
         glow: "rgba(46, 125, 50, 0.12)",
         shadow: "0 10px 30px rgba(46, 125, 50, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)",
-        shadowSm: "0 4px 12px rgba(46, 125, 50, 0.02)"
+        shadowSm: "0 4px 12px rgba(46, 125, 50, 0.02)",
       },
       red: {
         primary: "#C62828",
@@ -81,7 +149,7 @@ export default function SettingsPage() {
         light: "#FFEBEE",
         glow: "rgba(198, 40, 40, 0.12)",
         shadow: "0 10px 30px rgba(198, 40, 40, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)",
-        shadowSm: "0 4px 12px rgba(198, 40, 40, 0.02)"
+        shadowSm: "0 4px 12px rgba(198, 40, 40, 0.02)",
       },
       blue: {
         primary: "#1565C0",
@@ -89,7 +157,7 @@ export default function SettingsPage() {
         light: "#E3F2FD",
         glow: "rgba(21, 101, 192, 0.12)",
         shadow: "0 10px 30px rgba(21, 101, 192, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)",
-        shadowSm: "0 4px 12px rgba(21, 101, 192, 0.02)"
+        shadowSm: "0 4px 12px rgba(21, 101, 192, 0.02)",
       },
       orange: {
         primary: "#E65100",
@@ -97,10 +165,10 @@ export default function SettingsPage() {
         light: "#FFF3E0",
         glow: "rgba(230, 81, 0, 0.12)",
         shadow: "0 10px 30px rgba(230, 81, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)",
-        shadowSm: "0 4px 12px rgba(230, 81, 0, 0.02)"
-      }
+        shadowSm: "0 4px 12px rgba(230, 81, 0, 0.02)",
+      },
     };
-    
+
     const p = presets[color] || presets.green;
     document.documentElement.style.setProperty("--accent-primary", p.primary);
     document.documentElement.style.setProperty("--accent-secondary", p.secondary);
@@ -108,66 +176,178 @@ export default function SettingsPage() {
     document.documentElement.style.setProperty("--accent-glow", p.glow);
     document.documentElement.style.setProperty("--shadow", p.shadow);
     document.documentElement.style.setProperty("--shadow-sm", p.shadowSm);
-    
+
     window.dispatchEvent(new Event("accentthemechange"));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setTimeout(() => {
+
+    try {
+      // Save settings to LocalStorage
+      localStorage.setItem("fmcg_conf_threshold", confThreshold.toString());
+      localStorage.setItem("fmcg_iou_threshold", iouThreshold.toString());
+      localStorage.setItem("fmcg_default_img_size", defaultImgSize);
+      localStorage.setItem("fmcg_multi_model_nms", enableMultiModelNms ? "true" : "false");
+      localStorage.setItem("fmcg_export_format", defaultExportFormat);
+      localStorage.setItem("fmcg_system_name", systemName);
+      localStorage.setItem("fmcg_company_name", companyName);
+
+      showToast("System settings saved and applied successfully!", "success");
+    } catch {
+      showToast("Failed to save settings to browser storage.", "error");
+    } finally {
       setSaving(false);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    }, 800);
+    }
+  };
+
+  const handleClearLocalCache = () => {
+    if (confirm("Are you sure you want to clear locally cached audit scans?")) {
+      clearHistory();
+      void fetchSystemStats();
+      showToast("Local history cache cleared successfully!", "success");
+    }
+  };
+
+  const handleResetDefaults = () => {
+    if (confirm("Reset all settings to system factory defaults?")) {
+      setConfThreshold(0.25);
+      setIouThreshold(0.40);
+      setDefaultImgSize("1280");
+      setEnableMultiModelNms(true);
+      setDefaultExportFormat("csv");
+      setCsvDelimiter(",");
+      setIncludeImageUrls(true);
+      setSystemName("FMCG Insight 360");
+      setCompanyName("Global Retail Corp");
+      handleAccentChange("green");
+
+      localStorage.removeItem("fmcg_conf_threshold");
+      localStorage.removeItem("fmcg_iou_threshold");
+      localStorage.removeItem("fmcg_default_img_size");
+
+      showToast("Settings reset to factory defaults.", "success");
+    }
   };
 
   return (
     <div className="container stack" style={{ gap: "2rem" }}>
-      {/* Large Hero Header Card */}
-      <section className="card" style={{
-        background: "linear-gradient(135deg, var(--accent-light) 0%, var(--bg) 100%)",
-        border: "1px solid var(--accent-glow)",
-        position: "relative",
-        overflow: "hidden",
-        padding: "2rem",
-        borderLeft: "4px solid var(--accent-primary)"
-      }}>
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            top: "1.5rem",
+            right: "1.5rem",
+            zIndex: 99999,
+            background: toast.type === "success" ? "#1B5E20" : "#C62828",
+            color: "#FFFFFF",
+            padding: "0.85rem 1.4rem",
+            borderRadius: "10px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            fontSize: "0.9rem",
+            fontWeight: 700,
+          }}
+        >
+          <span>{toast.type === "success" ? "✅" : "⚠️"}</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Header Banner */}
+      <section
+        className="card"
+        style={{
+          background: "linear-gradient(135deg, var(--accent-light) 0%, var(--bg) 100%)",
+          border: "1px solid var(--accent-glow)",
+          position: "relative",
+          overflow: "hidden",
+          padding: "2rem",
+          borderLeft: "4px solid var(--accent-primary)",
+        }}
+      >
         <div style={{ position: "relative", zIndex: 2 }}>
-          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.08em", color: "var(--accent-primary)" }}>Administration</span>
-          <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0 0", color: "var(--accent-primary)" }}>Control Console Settings</h1>
+          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.08em", color: "var(--accent-primary)" }}>
+            System Administration
+          </span>
+          <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0.25rem 0 0", color: "var(--accent-primary)" }}>
+            Control Console Settings
+          </h1>
           <div className="main-header-line" />
           <p style={{ color: "var(--text-secondary)", margin: "0.5rem 0 0", fontSize: "0.9rem", lineHeight: "1.5" }}>
-            Modify system operational values, design parameters, and model thresholds.
+            Configure AI multi-model thresholds, infrastructure connectivity, report export defaults, and system appearance.
           </p>
         </div>
       </section>
 
-      {/* Modern Tabs Row */}
-      <div className="settings-tabs" style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
-        {([
-          { key: "general", label: "General" },
-          { key: "branding", label: "Branding" },
-          { key: "users", label: "Users" },
-          { key: "roles", label: "Roles" },
-          { key: "notifications", label: "Notifications" },
-          { key: "ai", label: "AI & Audit Rules" },
-          { key: "system", label: "Infrastructure" }
-        ] as { key: SettingsTab; label: string }[]).map((tab) => (
+      {/* System Status Summary Bar */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "1rem",
+        }}
+        className="detail-grid"
+      >
+        <div className="card" style={{ padding: "1rem 1.25rem", borderLeft: "4px solid var(--accent-primary)" }}>
+          <span className="subtle" style={{ fontSize: "0.75rem" }}>API Connection</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.3rem" }}>
+            <span
+              style={{
+                width: "10px",
+                height: "10px",
+                borderRadius: "50%",
+                background: healthStatus === "online" ? "#2E7D32" : healthStatus === "checking" ? "#F57C00" : "#C62828",
+              }}
+            />
+            <strong style={{ fontSize: "0.95rem" }}>{healthStatus === "online" ? "Online" : healthStatus === "checking" ? "Checking..." : "Offline"}</strong>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: "1rem 1.25rem", borderLeft: "4px solid #1565C0" }}>
+          <span className="subtle" style={{ fontSize: "0.75rem" }}>Active AI Models</span>
+          <strong style={{ display: "block", fontSize: "1.2rem", marginTop: "0.2rem" }}>{stats.activeModels} Loaded</strong>
+        </div>
+
+        <div className="card" style={{ padding: "1rem 1.25rem", borderLeft: "4px solid #7B1FA2" }}>
+          <span className="subtle" style={{ fontSize: "0.75rem" }}>Product Codes</span>
+          <strong style={{ display: "block", fontSize: "1.2rem", marginTop: "0.2rem" }}>{stats.totalProductCodes} Catalog SKUs</strong>
+        </div>
+
+        <div className="card" style={{ padding: "1rem 1.25rem", borderLeft: "4px solid #E65100" }}>
+          <span className="subtle" style={{ fontSize: "0.75rem" }}>Local History Cache</span>
+          <strong style={{ display: "block", fontSize: "1.2rem", marginTop: "0.2rem" }}>{stats.localHistoryCount} Scans</strong>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="settings-tabs" style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
+        {[
+          { key: "general", label: "⚙️ General", desc: "Console details" },
+          { key: "ai", label: "🧠 AI & Multi-Model Rules", desc: "NMS & Thresholds" },
+          { key: "export", label: "📊 Export & Reports", desc: "Format defaults" },
+          { key: "appearance", label: "🎨 Appearance & Theme", desc: "Colors & Dark mode" },
+          { key: "system", label: "⚡ System & Diagnostics", desc: "API & Storage" },
+        ].map((tab) => (
           <button
             key={tab.key}
             type="button"
             className={`settings-tab-btn ${activeTab === tab.key ? "active" : ""}`}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => setActiveTab(tab.key as SettingsTab)}
             style={{
-              padding: "0.5rem 1rem",
-              borderRadius: "99px",
+              padding: "0.6rem 1.2rem",
+              borderRadius: "10px",
               background: activeTab === tab.key ? "var(--accent-light)" : "transparent",
               color: activeTab === tab.key ? "var(--accent-primary)" : "var(--text-secondary)",
-              fontWeight: 700,
-              border: "none",
+              fontWeight: 800,
+              fontSize: "0.85rem",
+              border: activeTab === tab.key ? "1px solid var(--accent-primary)" : "1px solid transparent",
               cursor: "pointer",
-              transition: "var(--transition)"
+              transition: "all 0.2s",
             }}
           >
             {tab.label}
@@ -175,37 +355,60 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {saved && (
-        <div className="success-box">
-          Settings updated and saved successfully!
-        </div>
-      )}
-
-      {/* Main Configurations Form */}
-      <form onSubmit={handleSave}>
-        
+      {/* Main Settings Form */}
+      <form onSubmit={handleSaveSettings}>
         {/* TAB 1: General Settings */}
         {activeTab === "general" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "2rem" }} className="detail-grid">
-            {/* Left Card: Input form */}
-            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #E53935" }}>
-              <h2>General Setup</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "1.75rem" }} className="detail-grid">
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid var(--accent-primary)" }}>
+              <h2>General System Identity</h2>
               <label>
-                <span>Console Application Name</span>
-                <input value={systemName} onChange={(e) => setSystemName(e.target.value)} required />
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>
+                  Console Application Name:
+                </span>
+                <input
+                  type="text"
+                  value={systemName}
+                  onChange={(e) => setSystemName(e.target.value)}
+                  style={{ width: "100%", padding: "0.6rem 0.85rem", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)" }}
+                  required
+                />
               </label>
+
+              <label>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>
+                  Organization / Company Name:
+                </span>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  style={{ width: "100%", padding: "0.6rem 0.85rem", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)" }}
+                  required
+                />
+              </label>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <label>
-                  <span>System Language</span>
-                  <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+                  <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>Language:</span>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    style={{ width: "100%", padding: "0.6rem 0.85rem", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)" }}
+                  >
                     <option value="en">English (US)</option>
                     <option value="es">Español</option>
                     <option value="fr">Français</option>
                   </select>
                 </label>
+
                 <label>
-                  <span>Time Zone</span>
-                  <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                  <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>Time Zone:</span>
+                  <select
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                    style={{ width: "100%", padding: "0.6rem 0.85rem", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)" }}
+                  >
                     <option value="UTC">UTC (GMT)</option>
                     <option value="UTC+5:30">UTC+5:30 (IST)</option>
                     <option value="UTC-5:00">UTC-5:00 (EST)</option>
@@ -214,12 +417,215 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Right Card: Theme variables */}
-            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #1E88E5" }}>
-              <h2>Appearance Theme</h2>
-              <p className="subtle">Toggle visual parameters to switch themes dynamically.</p>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #1565C0" }}>
+              <h2>Console Information</h2>
+              <p className="subtle" style={{ fontSize: "0.85rem" }}>
+                FMCG Insight 360 platform deployment parameters.
+              </p>
+
+              <div className="stack" style={{ gap: "0.75rem", fontSize: "0.85rem" }}>
+                <div className="row-between">
+                  <span className="subtle">Core Engine:</span>
+                  <strong>FastAPI + PyTorch / YOLOv8</strong>
+                </div>
+                <div className="row-between">
+                  <span className="subtle">Message Broker:</span>
+                  <strong>RabbitMQ Async Worker</strong>
+                </div>
+                <div className="row-between">
+                  <span className="subtle">Database Layer:</span>
+                  <strong>PostgreSQL / SQLAlchemy</strong>
+                </div>
+                <div className="row-between">
+                  <span className="subtle">Object Storage:</span>
+                  <strong>MinIO S3 Compatible</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: AI & Multi-Model Rules */}
+        {activeTab === "ai" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "1.75rem" }} className="detail-grid">
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #2E7D32" }}>
+              <h2>AI Neural Inference & NMS Thresholds</h2>
+
+              <label>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>
+                  Confidence Threshold (conf_thresh): <strong>{(confThreshold * 100).toFixed(0)}% ({confThreshold})</strong>
+                </span>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="0.95"
+                  step="0.05"
+                  value={confThreshold}
+                  onChange={(e) => setConfThreshold(Number(e.target.value))}
+                  style={{ width: "100%", accentColor: "var(--accent-primary)" }}
+                />
+                <span className="subtle" style={{ fontSize: "0.75rem", display: "block", marginTop: "0.2rem" }}>
+                  Minimum model confidence required to accept a bounding box detection.
+                </span>
+              </label>
+
+              <label>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>
+                  Cross-Model IoU NMS Threshold (iou_thresh): <strong>{(iouThreshold * 100).toFixed(0)}% ({iouThreshold})</strong>
+                </span>
+                <input
+                  type="range"
+                  min="0.10"
+                  max="0.90"
+                  step="0.05"
+                  value={iouThreshold}
+                  onChange={(e) => setIouThreshold(Number(e.target.value))}
+                  style={{ width: "100%", accentColor: "var(--accent-primary)" }}
+                />
+                <span className="subtle" style={{ fontSize: "0.75rem", display: "block", marginTop: "0.2rem" }}>
+                  Deduplicates overlapping bounding boxes from multiple models for the same product class.
+                </span>
+              </label>
+
+              <label>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>
+                  Default Inference Resolution:
+                </span>
+                <select
+                  value={defaultImgSize}
+                  onChange={(e) => setDefaultImgSize(e.target.value)}
+                  style={{ width: "100%", padding: "0.6rem 0.85rem", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)" }}
+                >
+                  <option value="640">640 px (Standard Speed)</option>
+                  <option value="1280">1280 px (High Precision - Recommended)</option>
+                  <option value="1920">1920 px (Ultra High Res)</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #E65100" }}>
+              <h2>Multi-Model Pipeline Settings</h2>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1rem" }}>
+                <div>
+                  <strong style={{ fontSize: "0.9rem", display: "block" }}>Cross-Model Box Merging</strong>
+                  <span className="subtle" style={{ fontSize: "0.75rem" }}>
+                    Sequentially merge predictions when multiple models map to 1 Product Code.
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={enableMultiModelNms}
+                  onChange={(e) => setEnableMultiModelNms(e.target.checked)}
+                  style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <strong style={{ fontSize: "0.9rem", display: "block" }}>Single Output Canvas</strong>
+                  <span className="subtle" style={{ fontSize: "0.75rem" }}>
+                    Render all model predictions onto 1 unified image.
+                  </span>
+                </div>
+                <input type="checkbox" checked disabled style={{ width: "18px", height: "18px" }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: Export & Reports */}
+        {activeTab === "export" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "1.75rem" }} className="detail-grid">
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #2E7D32" }}>
+              <h2>Report Export Defaults</h2>
+
+              <label>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>
+                  Default Audit Download Format:
+                </span>
+                <select
+                  value={defaultExportFormat}
+                  onChange={(e) => setDefaultExportFormat(e.target.value as "csv" | "json")}
+                  style={{ width: "100%", padding: "0.6rem 0.85rem", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)" }}
+                >
+                  <option value="csv">📊 CSV Spreadsheet (.csv)</option>
+                  <option value="json">📄 JSON Data Dump (.json)</option>
+                </select>
+              </label>
+
+              <label>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>
+                  CSV Delimiter Character:
+                </span>
+                <select
+                  value={csvDelimiter}
+                  onChange={(e) => setCsvDelimiter(e.target.value)}
+                  style={{ width: "100%", padding: "0.6rem 0.85rem", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)" }}
+                >
+                  <option value=",">Comma ( , ) - Standard Excel</option>
+                  <option value=";">Semicolon ( ; ) - European Regional</option>
+                  <option value="\t">Tab ( \t ) - TSV Format</option>
+                </select>
+              </label>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "0.5rem" }}>
+                <div>
+                  <strong style={{ fontSize: "0.9rem", display: "block" }}>Include Image URLs in Export</strong>
+                  <span className="subtle" style={{ fontSize: "0.75rem" }}>
+                    Embed Raw & Detected image URLs in generated CSV/JSON reports.
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={includeImageUrls}
+                  onChange={(e) => setIncludeImageUrls(e.target.checked)}
+                  style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                />
+              </div>
+            </div>
+
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #1565C0" }}>
+              <h2>Local Storage Limits</h2>
+
+              <label>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>
+                  Max Local History Items ({maxLocalHistory} items):
+                </span>
+                <input
+                  type="range"
+                  min="25"
+                  max="500"
+                  step="25"
+                  value={maxLocalHistory}
+                  onChange={(e) => setMaxLocalHistory(Number(e.target.value))}
+                  style={{ width: "100%", accentColor: "var(--accent-primary)" }}
+                />
+              </label>
+
+              <button
+                type="button"
+                className="button-danger"
+                style={{ background: "#EF5350", color: "#FFFFFF", padding: "0.65rem 1rem", borderRadius: "8px", fontWeight: 700 }}
+                onClick={handleClearLocalCache}
+              >
+                🗑️ Clear Local History Cache
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: Appearance & Custom Theme */}
+        {activeTab === "appearance" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "1.75rem" }} className="detail-grid">
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #1565C0" }}>
+              <h2>Theme & Color Customization</h2>
+
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "1.25rem" }}>
-                <span>Dark Color Theme</span>
+                <div>
+                  <strong style={{ fontSize: "0.95rem", display: "block" }}>Dark Mode Theme</strong>
+                  <span className="subtle" style={{ fontSize: "0.78rem" }}>Toggle dark background palette for console UI.</span>
+                </div>
                 <input
                   type="checkbox"
                   checked={darkMode}
@@ -231,334 +637,147 @@ export default function SettingsPage() {
                     localStorage.setItem("theme", nextTheme);
                     window.dispatchEvent(new Event("themechange"));
                   }}
-                  style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                  style={{ width: "18px", height: "18px", cursor: "pointer" }}
                 />
               </div>
 
-              {/* Accent Color theme toggles */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)" }}>Accent Color Shading</span>
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() => handleAccentChange("green")}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "0.5rem",
-                      padding: "0.45rem 0.95rem", borderRadius: "99px",
-                      border: activeAccent === "green" ? "2px solid #2E7D32" : "1px solid var(--border)",
-                      background: activeAccent === "green" ? "#E8F5E9" : "var(--surface)",
-                      color: "#2E7D32", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer",
-                      transition: "all 0.25s"
-                    }}
-                  >
-                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#2E7D32" }} />
-                    Green
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAccentChange("red")}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "0.5rem",
-                      padding: "0.45rem 0.95rem", borderRadius: "99px",
-                      border: activeAccent === "red" ? "2px solid #C62828" : "1px solid var(--border)",
-                      background: activeAccent === "red" ? "#FFEBEE" : "var(--surface)",
-                      color: "#C62828", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer",
-                      transition: "all 0.25s"
-                    }}
-                  >
-                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#C62828" }} />
-                    Red
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAccentChange("blue")}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "0.5rem",
-                      padding: "0.45rem 0.95rem", borderRadius: "99px",
-                      border: activeAccent === "blue" ? "2px solid #1565C0" : "1px solid var(--border)",
-                      background: activeAccent === "blue" ? "#E3F2FD" : "var(--surface)",
-                      color: "#1565C0", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer",
-                      transition: "all 0.25s"
-                    }}
-                  >
-                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#1565C0" }} />
-                    Blue
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAccentChange("orange")}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "0.5rem",
-                      padding: "0.45rem 0.95rem", borderRadius: "99px",
-                      border: activeAccent === "orange" ? "2px solid #E65100" : "1px solid var(--border)",
-                      background: activeAccent === "orange" ? "#FFF3E0" : "var(--surface)",
-                      color: "#E65100", fontWeight: 700, fontSize: "0.8rem", cursor: "pointer",
-                      transition: "all 0.25s"
-                    }}
-                  >
-                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#E65100" }} />
-                    Orange
-                  </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)" }}>Accent Palette Preset</span>
+                <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                  {(["green", "red", "blue", "orange"] as const).map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => handleAccentChange(color)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        padding: "0.55rem 1.1rem",
+                        borderRadius: "99px",
+                        border: activeAccent === color ? "2px solid var(--accent-primary)" : "1px solid var(--border)",
+                        background: activeAccent === color ? "var(--accent-light)" : "var(--bg)",
+                        color: "var(--text-primary)",
+                        fontWeight: 800,
+                        fontSize: "0.85rem",
+                        cursor: "pointer",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          borderRadius: "50%",
+                          background: color === "green" ? "#2E7D32" : color === "red" ? "#C62828" : color === "blue" ? "#1565C0" : "#E65100",
+                        }}
+                      />
+                      {color}
+                    </button>
+                  ))}
                 </div>
+              </div>
+            </div>
+
+            <div className="card stack" style={{ gap: "1rem", borderLeft: "4px solid #2E7D32" }}>
+              <h2>Live Theme Preview</h2>
+              <div
+                style={{
+                  padding: "1.25rem",
+                  borderRadius: "12px",
+                  background: "var(--accent-light)",
+                  border: "1px solid var(--accent-glow)",
+                }}
+              >
+                <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, color: "var(--accent-primary)" }}>Preview Badge</span>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "0.2rem 0", color: "var(--accent-primary)" }}>
+                  {systemName}
+                </h3>
+                <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", margin: 0 }}>
+                  Active Accent: <strong style={{ textTransform: "capitalize" }}>{activeAccent}</strong>
+                </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 2: Branding Settings */}
-        {activeTab === "branding" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }} className="detail-grid">
-            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #E53935" }}>
-              <h2>Console Identity</h2>
-              <label>
-                <span>Company Organization Name</span>
-                <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-              </label>
-
-              <label>
-                <span>Company Brand Color</span>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                  <input type="color" value={themeColor} onChange={(e) => setThemeColor(e.target.value)} style={{ padding: 0, width: "40px", height: "40px", border: "none", cursor: "pointer" }} />
-                  <input type="text" value={themeColor} onChange={(e) => setThemeColor(e.target.value)} />
-                </div>
-              </label>
-            </div>
-
-            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #1E88E5" }}>
-              <h2>Company Logo Uploader</h2>
-              <p className="subtle">Drop organization logo file (.PNG or .SVG format).</p>
-              <div style={{ border: "2px dashed var(--border)", borderRadius: "12px", padding: "2rem", textAlign: "center", cursor: "pointer", background: "var(--bg)" }}>
-                <svg style={{ width: "36px", height: "36px", color: "var(--border-focus)", opacity: 0.5, margin: "0 auto 0.5rem" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--accent-primary)" }}>Upload Company Logo</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: Users */}
-        {activeTab === "users" && (
-          <div className="card stack" style={{ gap: "1.5rem", borderLeft: "4px solid #43A047" }}>
-            <div className="row-between" style={{ alignItems: "center" }}>
-              <div>
-                <h2>Active Operator Directory</h2>
-                <p className="subtle">Manage console access and invite operational agents.</p>
-              </div>
-              <button type="button" className="small">+ Invite Operator</button>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Operator Name</th>
-                    <th>Role Assigned</th>
-                    <th>Current Status</th>
-                    <th style={{ textAlign: "right" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>Admin Console</strong></td>
-                    <td>Super Admin</td>
-                    <td><span className="chip completed" style={{ fontSize: "0.7rem", fontWeight: 700 }}>Active</span></td>
-                    <td style={{ textAlign: "right" }}><button type="button" className="small button-secondary" disabled>Suspend</button></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Operator-A</strong></td>
-                    <td>Field Agent</td>
-                    <td><span className="chip completed" style={{ fontSize: "0.7rem", fontWeight: 700 }}>Active</span></td>
-                    <td style={{ textAlign: "right" }}><button type="button" className="small button-danger">Suspend</button></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Operator-B</strong></td>
-                    <td>Senior Inspector</td>
-                    <td><span className="chip failed" style={{ fontSize: "0.7rem", fontWeight: 700 }}>Suspended</span></td>
-                    <td style={{ textAlign: "right" }}><button type="button" className="small button-secondary">Activate</button></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: Roles */}
-        {activeTab === "roles" && (
-          <div className="card stack" style={{ gap: "1.5rem", borderLeft: "4px solid #FB8C00" }}>
-            <h2>System Access Roles</h2>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>System Role</th>
-                    <th>Permissions Scope</th>
-                    <th>User Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>Super Admin</strong></td>
-                    <td>Full access: database CRUD, model registry, broker config rules, system logs deletes.</td>
-                    <td>1 User</td>
-                  </tr>
-                  <tr>
-                    <td><strong>Senior Inspector</strong></td>
-                    <td>Moderate access: catalog updates, audit runs, history reviews. Can configure neural thresholds.</td>
-                    <td>2 Users</td>
-                  </tr>
-                  <tr>
-                    <td><strong>Field Agent</strong></td>
-                    <td>Limited access: execute scans and view audit details. Cannot update models or SKU codes.</td>
-                    <td>4 Users</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: Notifications */}
-        {activeTab === "notifications" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "2rem" }} className="detail-grid">
-            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #E53935" }}>
-              <h2>Alert Triggers</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <strong>Email Alerts Reports</strong>
-                    <span className="subtle" style={{ display: "block", fontSize: "0.75rem" }}>Weekly automated operational metrics report.</span>
-                  </div>
-                  <input type="checkbox" checked={emailNotif} onChange={(e) => setEmailNotif(e.target.checked)} style={{ width: "16px", height: "16px" }} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <strong>SMS Critical Warnings</strong>
-                    <span className="subtle" style={{ display: "block", fontSize: "0.75rem" }}>Direct notification on Celery worker broker dropouts.</span>
-                  </div>
-                  <input type="checkbox" checked={smsNotif} onChange={(e) => setSmsNotif(e.target.checked)} style={{ width: "16px", height: "16px" }} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <strong>Sound Alert Indicators</strong>
-                    <span className="subtle" style={{ display: "block", fontSize: "0.75rem" }}>Bleep warnings in console on YOLO coordinate fails.</span>
-                  </div>
-                  <input type="checkbox" checked={soundAlerts} onChange={(e) => setSoundAlerts(e.target.checked)} style={{ width: "16px", height: "16px" }} />
-                </div>
-              </div>
-            </div>
-            <div className="card stack" style={{ gap: "1rem", borderLeft: "4px solid #1E88E5" }}>
-              <h2>Log Telemetry Toggles</h2>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <strong>Auto Refresh Dashboard</strong>
-                  <span className="subtle" style={{ display: "block", fontSize: "0.75rem" }}>Update charts queries every 10 seconds.</span>
-                </div>
-                <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} style={{ width: "16px", height: "16px" }} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 6: AI & Audit Rules */}
-        {activeTab === "ai" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "2rem" }} className="detail-grid">
-            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #43A047" }}>
-              <h2>Hyperparameter Defaults</h2>
-              <label>
-                <span>Default Image Scan Resolution</span>
-                <select value={imageSize} onChange={(e) => setImageSize(e.target.value)}>
-                  <option value="320">320 px (Fast inference)</option>
-                  <option value="640">640 px (Recommended standard)</option>
-                  <option value="1280">1280 px (High contrast precision)</option>
-                </select>
-              </label>
-
-              <label>
-                <span>Default Confidence Threshold (conf_thresh): {confThreshold}</span>
-                <input type="range" min="0.05" max="0.95" step="0.05" value={confThreshold} onChange={(e) => setConfThreshold(Number(e.target.value))} style={{ width: "100%" }} />
-              </label>
-
-              <label>
-                <span>Default IoU NMS Threshold (iou_thresh): {iouThreshold}</span>
-                <input type="range" min="0.05" max="0.95" step="0.05" value={iouThreshold} onChange={(e) => setIouThreshold(Number(e.target.value))} style={{ width: "100%" }} />
-              </label>
-            </div>
-
-            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #FB8C00" }}>
-              <h2>Audit Quality Thresholds</h2>
-              <label>
-                <span>Minimum Compliance Pass Rate ({minPassRate}%)</span>
-                <input type="range" min="80" max="100" step="1" value={minPassRate} onChange={(e) => setMinPassRate(Number(e.target.value))} style={{ width: "100%" }} />
-              </label>
-              <label>
-                <span>Automated Scan Retries</span>
-                <select>
-                  <option value="1">1 Auto-retry on failures</option>
-                  <option value="3">3 Auto-retries (Recommended)</option>
-                  <option value="5">5 Auto-retries</option>
-                </select>
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 7: System Infrastructure */}
+        {/* TAB 5: System & Infrastructure */}
         {activeTab === "system" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "2rem" }} className="detail-grid">
-            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #E53935" }}>
-              <h2>Infrastructure Workers</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "1rem" }}>
-                <label>
-                  <span>RabbitMQ Broker IP</span>
-                  <input value={rabbitmqHost} onChange={(e) => setRabbitmqHost(e.target.value)} />
-                </label>
-                <label>
-                  <span>Broker Port</span>
-                  <input value={rabbitmqPort} onChange={(e) => setRabbitmqPort(e.target.value)} />
-                </label>
-              </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "1.75rem" }} className="detail-grid">
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #7B1FA2" }}>
+              <h2>Backend API Configuration & Diagnostics</h2>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "1rem" }}>
-                <label>
-                  <span>Redis Caching IP</span>
-                  <input value={redisHost} onChange={(e) => setRedisHost(e.target.value)} />
-                </label>
-                <label>
-                  <span>Redis Port</span>
-                  <input value={redisPort} onChange={(e) => setRedisPort(e.target.value)} />
-                </label>
+              <label>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.3rem" }}>
+                  Backend API Base URL:
+                </span>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <input
+                    type="text"
+                    value={apiBaseUrl}
+                    onChange={(e) => setApiBaseUrl(e.target.value)}
+                    style={{ flex: 1, padding: "0.6rem 0.85rem", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)" }}
+                  />
+                  <button type="button" className="button-secondary" onClick={runHealthCheck} style={{ padding: "0.6rem 1rem" }}>
+                    🔄 Test Ping
+                  </button>
+                </div>
+              </label>
+
+              <div
+                style={{
+                  padding: "1rem",
+                  borderRadius: "8px",
+                  background: healthStatus === "online" ? "#E8F5E9" : healthStatus === "checking" ? "#FFF3E0" : "#FFEBEE",
+                  border: `1px solid ${healthStatus === "online" ? "#A5D6A7" : healthStatus === "checking" ? "#FFE0B2" : "#EF9A9A"}`,
+                  fontSize: "0.85rem",
+                  color: healthStatus === "online" ? "#1B5E20" : healthStatus === "checking" ? "#E65100" : "#C62828",
+                  fontWeight: 700,
+                }}
+              >
+                {healthMessage}
               </div>
             </div>
 
-            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #1E88E5" }}>
-              <h2>Scan File Archiving</h2>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <strong>Save Bounding Frame Images</strong>
-                  <span className="subtle" style={{ display: "block", fontSize: "0.72rem" }}>Save raw scans annotated by YOLO model.</span>
-                </div>
-                <input type="checkbox" checked={saveFrames} onChange={(e) => setSaveFrames(e.target.checked)} style={{ width: "16px", height: "16px" }} />
-              </div>
+            <div className="card stack" style={{ gap: "1.25rem", borderLeft: "4px solid #C62828" }}>
+              <h2>System Maintenance Tools</h2>
 
-              <label>
-                <span>Automated Log Purging</span>
-                <select>
-                  <option value="30">After 30 days</option>
-                  <option value="90">After 90 days</option>
-                  <option value="365">After 1 year</option>
-                </select>
-              </label>
+              <button
+                type="button"
+                className="button-secondary"
+                style={{ width: "100%", padding: "0.65rem 1rem", borderRadius: "8px", fontWeight: 700 }}
+                onClick={handleResetDefaults}
+              >
+                🔄 Reset to Factory Defaults
+              </button>
             </div>
           </div>
         )}
 
-        {/* Save button panel */}
-        <div style={{ marginTop: "1.5rem", display: "flex", gap: "0.5rem" }}>
-          <button type="submit" disabled={saving}>
-            {saving ? "Updating console parameters..." : "Save Configuration Parameters"}
+        {/* Footer Action Buttons */}
+        <div style={{ marginTop: "2rem", display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={handleResetDefaults}
+            style={{ padding: "0.65rem 1.25rem", borderRadius: "10px", fontWeight: 700 }}
+          >
+            Reset Defaults
+          </button>
+          <button
+            type="submit"
+            className="button-primary"
+            disabled={saving}
+            style={{
+              padding: "0.65rem 1.5rem",
+              borderRadius: "10px",
+              fontWeight: 800,
+              boxShadow: "0 4px 14px rgba(46, 125, 50, 0.25)",
+            }}
+          >
+            {saving ? "Saving Changes..." : "💾 Save Settings Parameters"}
           </button>
         </div>
-
       </form>
     </div>
   );

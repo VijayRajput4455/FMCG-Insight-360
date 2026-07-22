@@ -34,8 +34,8 @@ def _compute_iou(box1: list[int], box2: list[int]) -> float:
 def _apply_cross_model_nms(raw_detections: list[dict], iou_threshold: float = 0.40) -> list[dict]:
     """
     Perform cross-model Non-Maximum Suppression (NMS) across detections from multiple models.
-    Deduplicates overlapping boxes from different models for the same item while preserving
-    distinct physical item detections.
+    Deduplicates overlapping bounding boxes from different models for the SAME product label,
+    while preserving all distinct detected objects (e.g., dog, face, person).
     """
     if not raw_detections:
         return []
@@ -48,12 +48,8 @@ def _apply_cross_model_nms(raw_detections: list[dict], iou_threshold: float = 0.
         keep = True
         for kept in kept_detections:
             iou = _compute_iou(current["bbox"], kept["bbox"])
-            # Same product label & significant overlap -> suppress duplicate box
+            # Suppress duplicate box only if it's the SAME product label with high overlap
             if current["label"] == kept["label"] and iou > iou_threshold:
-                keep = False
-                break
-            # Different label & extreme overlap (same physical object misclassified) -> keep higher confidence box
-            if current["label"] != kept["label"] and iou > 0.80:
                 keep = False
                 break
 

@@ -240,26 +240,50 @@ export default function AuditConsole() {
   const productImageUrl = resultJson?.product_image_url ? resolveApiAssetUrl(String(resultJson.product_image_url)) : "";
   const total = Number(resultJson?.total ?? resultJson?.total_product_count ?? 0);
   
-  // Safe coordinate parser
+  // Robust coordinate parser supporting single & multi-model payloads
   const parsedCoords = useMemo(() => {
     const coords = resultJson?.detection_coordinates;
     if (!coords || !Array.isArray(coords)) return [];
-    
-    return coords.map((item: any, idx: number) => {
-      if (!item) return null;
-      const keys = Object.keys(item);
-      if (keys.length === 0) return null;
-      const label = keys[0];
-      const bbox = item[label];
-      if (Array.isArray(bbox) && bbox.length === 4) {
-        return {
-          id: idx,
-          label,
-          bbox: bbox as [number, number, number, number]
-        };
-      }
-      return null;
-    }).filter(Boolean) as Array<{ id: number; label: string; bbox: [number, number, number, number] }>;
+
+    return coords
+      .map((item: any, idx: number) => {
+        if (!item) return null;
+
+        // Mode 1: Search keys for the 4-element bounding box array
+        for (const key of Object.keys(item)) {
+          if (key === "confidence" || key === "model" || key === "score") continue;
+          const val = item[key];
+          if (Array.isArray(val) && val.length === 4) {
+            return {
+              id: idx,
+              label: key,
+              bbox: val as [number, number, number, number],
+              confidence: item.confidence,
+              model: item.model,
+            };
+          }
+        }
+
+        // Mode 2: Explicit object format { label: "person", bbox: [x1,y1,x2,y2] }
+        if (item.label && Array.isArray(item.bbox) && item.bbox.length === 4) {
+          return {
+            id: idx,
+            label: String(item.label),
+            bbox: item.bbox as [number, number, number, number],
+            confidence: item.confidence,
+            model: item.model,
+          };
+        }
+
+        return null;
+      })
+      .filter(Boolean) as Array<{
+      id: number;
+      label: string;
+      bbox: [number, number, number, number];
+      confidence?: number;
+      model?: string;
+    }>;
   }, [resultJson]);
 
   const detectedProducts = useMemo(() => resultJson?.detected_products || [], [resultJson]);

@@ -40,3 +40,9 @@ export function updateHistoryStatus(auditId: number, status: HistoryStatus): voi
   const updated = items.map((item) => (item.auditId === auditId ? { ...item, status } : item));
   saveHistory(updated);
 }
+
+export function clearHistory(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(STORAGE_KEY);
+}
+
