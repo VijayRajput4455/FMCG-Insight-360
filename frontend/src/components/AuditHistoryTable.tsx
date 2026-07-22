@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { deleteAudit, getAuditStatus, listAudits, resolveApiAssetUrl, type AuditLogItem } from "@/lib/api";
 import { getHistory, type AuditHistoryItem, type HistoryStatus, updateHistoryStatus } from "@/lib/history";
 import { SkeletonRows } from "@/components/Skeleton";
+import AuditReportExportModal from "@/components/AuditReportExportModal";
 
 type EnhancedAuditItem = {
   id: number;
@@ -31,6 +32,7 @@ export default function AuditHistoryTable() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   useEffect(() => {
     if (success) {
@@ -329,8 +331,22 @@ export default function AuditHistoryTable() {
               🕒 Timeline
             </button>
           </div>
-          <button type="button" className="button-secondary" style={{ boxShadow: "var(--shadow-sm)" }} onClick={handleExportCSV}>
-            Export Excel
+          <button
+            type="button"
+            className="button-primary"
+            onClick={() => setIsExportModalOpen(true)}
+            style={{
+              padding: "0.55rem 1.15rem",
+              borderRadius: "10px",
+              fontSize: "0.85rem",
+              fontWeight: 800,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              boxShadow: "0 4px 14px rgba(46, 125, 50, 0.25)",
+            }}
+          >
+            📥 Export Audit Reports
           </button>
         </div>
       </div>
@@ -595,6 +611,15 @@ export default function AuditHistoryTable() {
           </div>
         </div>
       )}
+
+      {/* Audit Report Export & Download Modal */}
+      <AuditReportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        initialProductCode={searchQuery}
+        initialStatus={filterStatus}
+      />
     </section>
   );
 }
+

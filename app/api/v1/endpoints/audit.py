@@ -1,3 +1,6 @@
+import csv
+import io
+import json
 import asyncio
 import logging
 import os
@@ -9,7 +12,7 @@ import cv2
 import numpy as np
 import requests
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -103,6 +106,21 @@ def _annotated_image_url(request: Request | WebSocket, object_key: str | None) -
 	filename = os.path.basename(object_key)
 	base = str(request.base_url).rstrip("/")
 	return f"{base}/api/v1/audit/image/{filename}"
+
+
+def _input_image_url(request: Request | WebSocket, path_or_key: str | None) -> str:
+	if not path_or_key:
+		return ""
+	if path_or_key.startswith("http://") or path_or_key.startswith("https://"):
+		return path_or_key
+	if settings.MINIO_ENABLED:
+		try:
+			return get_minio_service().presigned_get_url(settings.MINIO_INPUT_BUCKET, path_or_key)
+		except Exception:
+			pass
+	base = str(request.base_url).rstrip("/")
+	clean_path = path_or_key.replace("\\", "/").lstrip("/")
+	return f"{base}/{clean_path}"
 
 
 def _product_code_cache_key(product_code: str) -> str:
@@ -261,6 +279,297 @@ def list_audits(
 		)
 
 	return response
+
+
+@router.get("/export/csv", summary="Export audit results as CSV report with raw & detected image URLs")
+def export_audits_csv(
+	request: Request,
+	product_code: str | None = Query(None, description="Filter by product code"),
+	status: str | None = Query(None, description="Filter by audit status"),
+	start_date: str | None = Query(None, description="Filter start date YYYY-MM-DD"),
+	end_date: str | None = Query(None, description="Filter end date YYYY-MM-DD"),
+	limit: int = Query(10000, ge=1, le=50000),
+	db: Session = Depends(get_db),
+):
+	q = db.query(AuditResult).join(ProductCode, ProductCode.id == AuditResult.product_code_id)
+
+	if product_code:
+		q = q.filter(ProductCode.product_code.ilike(f"%{product_code}%"))
+
+	if status and status.lower() != "all":
+		q = q.filter(AuditResult.status == status.lower())
+
+	if start_date:
+		try:
+			dt_start = datetime.fromisoformat(start_date.replace("Z", ""))
+			q = q.filter(AuditResult.created_at >= dt_start)
+		except Exception:
+			pass
+
+	if end_date:
+		try:
+			dt_end = datetime.fromisoformat(end_date.replace("Z", ""))
+			q = q.filter(AuditResult.created_at <= dt_end)
+		except Exception:
+			pass
+
+	rows = q.order_by(AuditResult.created_at.desc()).limit(limit).all()
+
+	output = io.StringIO()
+	writer = csv.writer(output)
+
+	# CSV Header
+	writer.writerow([
+		"Audit ID",
+		"Product Code",
+		"Status",
+		"Created At",
+		"Error Message",
+		"Raw Input Image URL",
+		"Detected Output Image URL",
+		"Total Product Count",
+		"Total Self Count",
+		"Total Competition Count",
+		"Confidence %",
+		"Detected Item List",
+		"Brand Counts Breakdown",
+	])
+
+	for row in rows:
+		p_code = row.product_code.product_code if row.product_code else ""
+		created_str = row.created_at.strftime("%Y-%m-%d %H:%M:%S") if row.created_at else ""
+		raw_url = _input_image_url(request, row.image_path)
+
+		detected_url = ""
+		tot_count = 0
+		self_count = 0
+		comp_count = 0
+		confidence_str = "N/A"
+		detected_items_str = ""
+		brand_counts_str = ""
+
+		if row.result_json and isinstance(row.result_json, dict):
+			rj = row.result_json
+			annotated_key = rj.get("annotated_object_key") or rj.get("annotated_image_path")
+			if annotated_key:
+				detected_url = _annotated_image_url(request, annotated_key)
+
+			tot_count = rj.get("total_product_count", rj.get("total", 0))
+			self_count = rj.get("total_self_count", 0)
+			comp_count = rj.get("total_competition_count", 0)
+
+			conf_val = rj.get("confidence")
+			if conf_val is not None:
+				try:
+					c_val = float(conf_val)
+					confidence_str = f"{(c_val * (100 if c_val <= 1.0 else 1)):.2f}%"
+				except Exception:
+					confidence_str = str(conf_val)
+
+			if rj.get("counts") and isinstance(rj["counts"], dict):
+				detected_items_str = ", ".join(f"{k}: {v}" for k, v in rj["counts"].items())
+			elif rj.get("detected_products"):
+				detected_items_str = ", ".join(str(x) for x in rj.get("detected_products", []))
+
+			if rj.get("brand_counts") and isinstance(rj["brand_counts"], list):
+				brand_counts_str = ", ".join(
+					f"{bc.get('brand', bc.get('name', 'Brand'))}: {bc.get('count', 1)}"
+					for bc in rj["brand_counts"] if isinstance(bc, dict)
+				)
+
+		writer.writerow([
+			row.id,
+			p_code,
+			row.status,
+			created_str,
+			row.error_message or "",
+			raw_url,
+			detected_url,
+			tot_count,
+			self_count,
+			comp_count,
+			confidence_str,
+			detected_items_str,
+			brand_counts_str,
+		])
+
+	filename = f"audit_report_{datetime.utcnow():%Y%m%d_%H%M%S}.csv"
+	return Response(
+		content=output.getvalue(),
+		media_type="text/csv",
+		headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+	)
+
+
+@router.get("/export/json", summary="Export audit results as JSON payload with raw & detected image URLs")
+def export_audits_json(
+	request: Request,
+	product_code: str | None = Query(None, description="Filter by product code"),
+	status: str | None = Query(None, description="Filter by audit status"),
+	start_date: str | None = Query(None, description="Filter start date YYYY-MM-DD"),
+	end_date: str | None = Query(None, description="Filter end date YYYY-MM-DD"),
+	limit: int = Query(10000, ge=1, le=50000),
+	db: Session = Depends(get_db),
+):
+	q = db.query(AuditResult).join(ProductCode, ProductCode.id == AuditResult.product_code_id)
+
+	if product_code:
+		q = q.filter(ProductCode.product_code.ilike(f"%{product_code}%"))
+
+	if status and status.lower() != "all":
+		q = q.filter(AuditResult.status == status.lower())
+
+	if start_date:
+		try:
+			dt_start = datetime.fromisoformat(start_date.replace("Z", ""))
+			q = q.filter(AuditResult.created_at >= dt_start)
+		except Exception:
+			pass
+
+	if end_date:
+		try:
+			dt_end = datetime.fromisoformat(end_date.replace("Z", ""))
+			q = q.filter(AuditResult.created_at <= dt_end)
+		except Exception:
+			pass
+
+	rows = q.order_by(AuditResult.created_at.desc()).limit(limit).all()
+
+	export_list = []
+	for row in rows:
+		rj = dict(row.result_json) if (row.result_json and isinstance(row.result_json, dict)) else {}
+		annotated_key = rj.get("annotated_object_key") or rj.get("annotated_image_path")
+
+		export_list.append({
+			"id": row.id,
+			"audit_id": row.id,
+			"product_code": row.product_code.product_code if row.product_code else None,
+			"status": row.status,
+			"created_at": row.created_at.isoformat() if row.created_at else None,
+			"error_message": row.error_message,
+			"raw_image_url": _input_image_url(request, row.image_path),
+			"detected_image_url": _annotated_image_url(request, annotated_key) if annotated_key else "",
+			"result_json": rj,
+		})
+
+	filename = f"audit_report_{datetime.utcnow():%Y%m%d_%H%M%S}.json"
+	return Response(
+		content=json.dumps(export_list, indent=2),
+		media_type="application/json",
+		headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+	)
+
+
+@router.get("/export/report-data", summary="Fetch structured audit report data with image URLs")
+def get_audit_report_data(
+	request: Request,
+	product_code: str | None = Query(None, description="Filter by product code"),
+	status: str | None = Query(None, description="Filter by audit status"),
+	start_date: str | None = Query(None, description="Filter start date YYYY-MM-DD"),
+	end_date: str | None = Query(None, description="Filter end date YYYY-MM-DD"),
+	limit: int = Query(2000, ge=1, le=10000),
+	db: Session = Depends(get_db),
+):
+	q = db.query(AuditResult).join(ProductCode, ProductCode.id == AuditResult.product_code_id)
+
+	if product_code:
+		q = q.filter(ProductCode.product_code.ilike(f"%{product_code}%"))
+
+	if status and status.lower() != "all":
+		q = q.filter(AuditResult.status == status.lower())
+
+	if start_date:
+		try:
+			dt_start = datetime.fromisoformat(start_date.replace("Z", ""))
+			q = q.filter(AuditResult.created_at >= dt_start)
+		except Exception:
+			pass
+
+	if end_date:
+		try:
+			dt_end = datetime.fromisoformat(end_date.replace("Z", ""))
+			q = q.filter(AuditResult.created_at <= dt_end)
+		except Exception:
+			pass
+
+	rows = q.order_by(AuditResult.created_at.desc()).limit(limit).all()
+
+	audits = []
+	total_completed = 0
+	total_failed = 0
+	total_self = 0
+	total_comp = 0
+	conf_sum = 0.0
+	conf_count = 0
+
+	for row in rows:
+		p_code = row.product_code.product_code if row.product_code else "Unmapped SKU"
+		raw_url = _input_image_url(request, row.image_path)
+		detected_url = ""
+		tot_count = 0
+		s_count = 0
+		c_count = 0
+		conf_pct = 0.0
+		counts = {}
+
+		if row.status == "completed":
+			total_completed += 1
+		elif row.status == "failed":
+			total_failed += 1
+
+		if row.result_json and isinstance(row.result_json, dict):
+			rj = row.result_json
+			annotated_key = rj.get("annotated_object_key") or rj.get("annotated_image_path")
+			if annotated_key:
+				detected_url = _annotated_image_url(request, annotated_key)
+
+			tot_count = rj.get("total_product_count", rj.get("total", 0))
+			s_count = rj.get("total_self_count", 0)
+			c_count = rj.get("total_competition_count", 0)
+			total_self += s_count
+			total_comp += c_count
+
+			conf_val = rj.get("confidence")
+			if conf_val is not None:
+				try:
+					c_float = float(conf_val)
+					conf_pct = c_float * 100 if c_float <= 1.0 else c_float
+					conf_sum += conf_pct
+					conf_count += 1
+				except Exception:
+					pass
+
+			counts = rj.get("counts") or {}
+
+		audits.append({
+			"id": row.id,
+			"audit_id": row.id,
+			"product_code": p_code,
+			"status": row.status,
+			"created_at": row.created_at.isoformat() if row.created_at else "",
+			"error_message": row.error_message,
+			"raw_image_url": raw_url,
+			"detected_image_url": detected_url,
+			"total_count": tot_count,
+			"self_count": s_count,
+			"competition_count": c_count,
+			"confidence": round(conf_pct, 2),
+			"counts": counts,
+		})
+
+	avg_conf = round(conf_sum / conf_count, 2) if conf_count > 0 else 0.0
+
+	return {
+		"summary": {
+			"total_audits": len(audits),
+			"completed": total_completed,
+			"failed": total_failed,
+			"total_self": total_self,
+			"total_comp": total_comp,
+			"avg_confidence": avg_conf,
+		},
+		"audits": audits,
+	}
 
 
 @router.get("/by-code")

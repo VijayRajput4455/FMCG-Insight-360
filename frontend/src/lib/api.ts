@@ -534,3 +534,84 @@ export async function uploadModel(
   return response.json();
 }
 
+// --- Audit Report Export API Helpers ---
+
+export type AuditReportFilter = {
+  product_code?: string;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+};
+
+export type AuditReportItem = {
+  id: number;
+  audit_id: number;
+  product_code: string;
+  status: string;
+  created_at: string;
+  error_message?: string | null;
+  raw_image_url: string;
+  detected_image_url: string;
+  total_count: number;
+  self_count: number;
+  competition_count: number;
+  confidence: number;
+  counts: Record<string, number>;
+};
+
+export type AuditReportDataResponse = {
+  summary: {
+    total_audits: number;
+    completed: number;
+    failed: number;
+    total_self: number;
+    total_comp: number;
+    avg_confidence: number;
+  };
+  audits: AuditReportItem[];
+};
+
+export function getAuditExportCsvUrl(filters?: AuditReportFilter): string {
+  const params = new URLSearchParams();
+  if (filters?.product_code) params.append("product_code", filters.product_code);
+  if (filters?.status && filters.status !== "all") params.append("status", filters.status);
+  if (filters?.start_date) params.append("start_date", filters.start_date);
+  if (filters?.end_date) params.append("end_date", filters.end_date);
+  if (filters?.limit) params.append("limit", String(filters.limit));
+
+  return buildUrl(`/api/v1/audit/export/csv?${params.toString()}`);
+}
+
+export function getAuditExportJsonUrl(filters?: AuditReportFilter): string {
+  const params = new URLSearchParams();
+  if (filters?.product_code) params.append("product_code", filters.product_code);
+  if (filters?.status && filters.status !== "all") params.append("status", filters.status);
+  if (filters?.start_date) params.append("start_date", filters.start_date);
+  if (filters?.end_date) params.append("end_date", filters.end_date);
+  if (filters?.limit) params.append("limit", String(filters.limit));
+
+  return buildUrl(`/api/v1/audit/export/json?${params.toString()}`);
+}
+
+export async function fetchAuditReportData(filters?: AuditReportFilter): Promise<AuditReportDataResponse> {
+  const params = new URLSearchParams();
+  if (filters?.product_code) params.append("product_code", filters.product_code);
+  if (filters?.status && filters.status !== "all") params.append("status", filters.status);
+  if (filters?.start_date) params.append("start_date", filters.start_date);
+  if (filters?.end_date) params.append("end_date", filters.end_date);
+  if (filters?.limit) params.append("limit", String(filters.limit || 2000));
+
+  const response = await fetch(buildUrl(`/api/v1/audit/export/report-data?${params.toString()}`), {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch report data (${response.status})`);
+  }
+
+  return response.json();
+}
+

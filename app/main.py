@@ -118,10 +118,13 @@ async def get_metrics(request: Request):
 	return await metrics_endpoint(request)
 
 # Serve annotated output images at /images/...
-# e.g. outputs/audit/file.jpg → http://host/images/audit/file.jpg
 _OUTPUT_DIR = os.getenv("AUDIT_OUTPUT_DIR", "outputs/audit")
 os.makedirs(_OUTPUT_DIR, exist_ok=True)
 app.mount("/images", StaticFiles(directory="outputs"), name="images")
+
+# Serve input upload images at /uploads/...
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 # Create tables (DEV ONLY - remove later for Alembic)
