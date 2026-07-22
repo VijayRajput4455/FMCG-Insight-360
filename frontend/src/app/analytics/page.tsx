@@ -419,7 +419,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* 1. Page Header with Time Range & Entity Status Filter */}
+      {/* 1. Page Header */}
       <section
         className="card row-between"
         style={{
@@ -453,108 +453,85 @@ export default function AnalyticsPage() {
           </p>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "flex-end" }}>
-          {/* Header Action Buttons Row */}
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-            <button
-              type="button"
-              onClick={() => setIsExportModalOpen(true)}
-              className="button-primary"
-              style={{
-                padding: "0.55rem 1.15rem",
-                borderRadius: "10px",
-                fontSize: "0.85rem",
-                fontWeight: 800,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                boxShadow: "0 4px 14px rgba(46, 125, 50, 0.25)",
-              }}
-            >
-              📥 Export Audit Reports
-            </button>
+        <div>
+          <button
+            type="button"
+            onClick={() => setIsExportModalOpen(true)}
+            className="button-primary"
+            style={{
+              padding: "0.7rem 1.4rem",
+              borderRadius: "12px",
+              fontSize: "0.9rem",
+              fontWeight: 800,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              boxShadow: "0 6px 18px rgba(46, 125, 50, 0.28)",
+            }}
+          >
+            📥 Export Audit Reports
+          </button>
+        </div>
+      </section>
 
-            {/* Time Range Selector */}
-            <div
-              className="segmented"
-              style={{
-                margin: 0,
-                display: "inline-flex",
-                gap: "0.4rem",
-                padding: "0.35rem",
-                borderRadius: "12px",
-                background: "var(--segmented-bg)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <button
-                type="button"
-                className={timeRange === "week" ? "seg active" : "seg"}
-                onClick={() => setTimeRange("week")}
-                style={{ padding: "0.45rem 1rem", borderRadius: "8px", fontSize: "0.82rem" }}
-              >
-                📅 This Week
-              </button>
-              <button
-                type="button"
-                className={timeRange === "month" ? "seg active" : "seg"}
-                onClick={() => setTimeRange("month")}
-                style={{ padding: "0.45rem 1rem", borderRadius: "8px", fontSize: "0.82rem" }}
-              >
-                🗓️ This Month
-              </button>
-              <button
-                type="button"
-                className={timeRange === "year" ? "seg active" : "seg"}
-                onClick={() => setTimeRange("year")}
-                style={{ padding: "0.45rem 1rem", borderRadius: "8px", fontSize: "0.82rem" }}
-              >
-                📊 This Year
-              </button>
-            </div>
-          </div>
-
-          {/* Active / Inactive Status Filter */}
+      {/* 2. Organized Control & Filter Toolbar Card */}
+      <section
+        className="card"
+        style={{
+          padding: "1rem 1.5rem",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "1rem",
+          borderRadius: "14px",
+          border: "1px solid var(--border)",
+        }}
+      >
+        {/* Left Filter: Catalog Entity Status */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+            Catalog Filter:
+          </span>
           <div
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "0.35rem",
-              padding: "0.3rem 0.4rem",
+              gap: "0.3rem",
+              padding: "0.3rem",
               borderRadius: "10px",
-              background: "var(--bg)",
+              background: "var(--segmented-bg)",
               border: "1px solid var(--border)",
             }}
           >
-            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", paddingLeft: "0.5rem" }}>
-              Filter Status:
-            </span>
             <button
               type="button"
               onClick={() => setStatusFilter("all")}
               style={{
-                padding: "0.35rem 0.85rem",
-                borderRadius: "6px",
-                fontSize: "0.78rem",
+                padding: "0.45rem 1rem",
+                borderRadius: "7px",
+                fontSize: "0.8rem",
                 fontWeight: 700,
                 border: "none",
                 cursor: "pointer",
+                transition: "all 0.2s",
                 background: statusFilter === "all" ? "var(--accent-primary)" : "transparent",
                 color: statusFilter === "all" ? "#FFFFFF" : "var(--text-secondary)",
               }}
             >
-              All Entities
+              🌐 All Entities
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter("active")}
               style={{
-                padding: "0.35rem 0.85rem",
-                borderRadius: "6px",
-                fontSize: "0.78rem",
+                padding: "0.45rem 1rem",
+                borderRadius: "7px",
+                fontSize: "0.8rem",
                 fontWeight: 700,
                 border: "none",
                 cursor: "pointer",
+                transition: "all 0.2s",
                 background: statusFilter === "active" ? "#2E7D32" : "transparent",
                 color: statusFilter === "active" ? "#FFFFFF" : "var(--text-secondary)",
               }}
@@ -565,12 +542,13 @@ export default function AnalyticsPage() {
               type="button"
               onClick={() => setStatusFilter("inactive")}
               style={{
-                padding: "0.35rem 0.85rem",
-                borderRadius: "6px",
-                fontSize: "0.78rem",
+                padding: "0.45rem 1rem",
+                borderRadius: "7px",
+                fontSize: "0.8rem",
                 fontWeight: 700,
                 border: "none",
                 cursor: "pointer",
+                transition: "all 0.2s",
                 background: statusFilter === "inactive" ? "#C62828" : "transparent",
                 color: statusFilter === "inactive" ? "#FFFFFF" : "var(--text-secondary)",
               }}
@@ -579,7 +557,52 @@ export default function AnalyticsPage() {
             </button>
           </div>
         </div>
+
+        {/* Right Filter: Time Horizon Window */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+            Time Window:
+          </span>
+          <div
+            className="segmented"
+            style={{
+              margin: 0,
+              display: "inline-flex",
+              gap: "0.3rem",
+              padding: "0.3rem",
+              borderRadius: "10px",
+              background: "var(--segmented-bg)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <button
+              type="button"
+              className={timeRange === "week" ? "seg active" : "seg"}
+              onClick={() => setTimeRange("week")}
+              style={{ padding: "0.45rem 1rem", borderRadius: "7px", fontSize: "0.8rem", fontWeight: 700 }}
+            >
+              📅 This Week
+            </button>
+            <button
+              type="button"
+              className={timeRange === "month" ? "seg active" : "seg"}
+              onClick={() => setTimeRange("month")}
+              style={{ padding: "0.45rem 1rem", borderRadius: "7px", fontSize: "0.8rem", fontWeight: 700 }}
+            >
+              🗓️ This Month
+            </button>
+            <button
+              type="button"
+              className={timeRange === "year" ? "seg active" : "seg"}
+              onClick={() => setTimeRange("year")}
+              style={{ padding: "0.45rem 1rem", borderRadius: "7px", fontSize: "0.8rem", fontWeight: 700 }}
+            >
+              📊 This Year
+            </button>
+          </div>
+        </div>
       </section>
+
 
       {/* 2. Primary Audit Volume Cards */}
       <section className="kpi-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
