@@ -70,13 +70,17 @@ def process_existing_audit(db: Session, audit_id: int, product_code_id: int, ima
         if inference_result.get("error"):
             raise Exception(inference_result["error"])
 
-        # Step 4: Merge results
         merged = merge_predictions(inference_result)
         annotated_image_path = _save_annotated_image(
             inference_result.get("annotated_image"),
             audit_id,
         )
-        model_name = models[0].name if (models and hasattr(models[0], "name")) else "YOLOv8n"
+        combined_model_names = inference_result.get("model_name")
+        if not combined_model_names and models:
+            names = [getattr(m.get("meta"), "model_name", "YOLO") for m in models if isinstance(m, dict) and m.get("meta")]
+            combined_model_names = " + ".join(dict.fromkeys(names)) if names else "YOLOv8n"
+        model_name = combined_model_names or "YOLOv8n"
+
         response_payload = {
             "counts": merged,
             "total_product_count": inference_result.get("total_product_count", sum(merged.values())),

@@ -10,6 +10,59 @@ from app.models.product import Product
 logger = logging.getLogger(__name__)
 
 
+def _compute_iou(box1: list[int], box2: list[int]) -> float:
+    """Compute Intersection over Union (IoU) between two bounding boxes [x1, y1, x2, y2]."""
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
+
+    inter_area = max(0, x2 - x1) * max(0, y2 - y1)
+    if inter_area == 0:
+        return 0.0
+
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union_area = box1_area + box2_area - inter_area
+
+    if union_area <= 0:
+        return 0.0
+
+    return inter_area / float(union_area)
+
+
+def _apply_cross_model_nms(raw_detections: list[dict], iou_threshold: float = 0.40) -> list[dict]:
+    """
+    Perform cross-model Non-Maximum Suppression (NMS) across detections from multiple models.
+    Deduplicates overlapping boxes from different models for the same item while preserving
+    distinct physical item detections.
+    """
+    if not raw_detections:
+        return []
+
+    # Sort detections by confidence score descending
+    sorted_dets = sorted(raw_detections, key=lambda d: d.get("confidence", 0.0), reverse=True)
+    kept_detections = []
+
+    for current in sorted_dets:
+        keep = True
+        for kept in kept_detections:
+            iou = _compute_iou(current["bbox"], kept["bbox"])
+            # Same product label & significant overlap -> suppress duplicate box
+            if current["label"] == kept["label"] and iou > iou_threshold:
+                keep = False
+                break
+            # Different label & extreme overlap (same physical object misclassified) -> keep higher confidence box
+            if current["label"] != kept["label"] and iou > 0.80:
+                keep = False
+                break
+
+        if keep:
+            kept_detections.append(current)
+
+    return kept_detections
+
+
 class InferenceService:
     def _get_prediction_device(self) -> str:
         return "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -70,6 +123,7 @@ class InferenceService:
         conf_thres=0.20,
         iou_thres=0.20,
     ):
+        """Single model detection helper (maintained for backward compatibility)."""
         try:
             detection_coordinates = []
 
@@ -77,10 +131,7 @@ class InferenceService:
                 logger.error("Invalid product code: %s", product_code)
                 return image, {"ERROR-Invalid Product Code": 0}, 0, []
 
-            logger.info("Valid products for '%s': %s", product_code, valid_product_names)
             device = self._get_prediction_device()
-            logger.info("Running inference on %s...", device)
-
             results = model.predict(
                 source=image,
                 imgsz=image_size,
@@ -91,90 +142,23 @@ class InferenceService:
             )
 
             product_counts = {}
-
             for result in results:
                 if result.boxes is None or len(result.boxes) == 0:
-                    logger.warning("No detections from model.")
                     continue
-
-                detected_labels = [
-                    self._get_class_name(model, int(box.cls.item())) for box in result.boxes
-                ]
-
-                unique_detected_labels = set(detected_labels)
-                logger.info("Detected classes: %s", unique_detected_labels)
-
-                if not any(label in valid_product_names for label in unique_detected_labels):
-                    logger.warning("No valid products detected.")
-                    return image, {"No products detected for given product code": 0}, 0, []
 
                 for box in result.boxes:
                     class_label = self._get_class_name(model, int(box.cls.item()))
-
                     if class_label not in valid_product_names:
                         continue
 
                     x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-
                     detection_coordinates.append({class_label: (x1, y1, x2, y2)})
                     product_counts[class_label] = product_counts.get(class_label, 0) + 1
 
-                    if class_label in self_products_list:
-                        box_color = (0, 0, 255)
-                    elif class_label in competitor_products_list:
-                        box_color = (255, 0, 0)
-                    else:
-                        box_color = (0, 255, 0)
-
+                    box_color = (0, 0, 255) if class_label in self_products_list else (255, 0, 0) if class_label in competitor_products_list else (0, 255, 0)
                     cv2.rectangle(image, (x1, y1), (x2, y2), box_color, 2)
 
-                    font_face = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
-                    font_scale = max(0.7, min(image.shape[:2]) / 2000)
-                    font_thickness = int(max(1, font_scale * 2))
-                    label_text = class_label
-
-                    (text_width, text_height), baseline = cv2.getTextSize(
-                        label_text,
-                        font_face,
-                        font_scale,
-                        font_thickness,
-                    )
-
-                    padding = 10
-                    text_x = x1 + padding
-                    text_y = max(y1, text_height + padding)
-
-                    box_x1 = x1
-                    box_y1 = text_y - text_height - padding
-                    box_x2 = x1 + text_width + padding * 2
-                    box_y2 = text_y - baseline + padding // 2
-
-                    cv2.rectangle(
-                        image,
-                        (box_x1, box_y1),
-                        (box_x2, box_y2),
-                        box_color,
-                        -1,
-                    )
-
-                    cv2.putText(
-                        image,
-                        label_text,
-                        (text_x, text_y - padding),
-                        font_face,
-                        font_scale,
-                        (255, 255, 255),
-                        font_thickness,
-                        cv2.LINE_AA,
-                    )
-
-            if not product_counts:
-                logger.warning("No valid products after filtering.")
-                return image, {"No products detected": 0}, 0, []
-
             total_detections = sum(product_counts.values())
-            logger.info("Detection complete. Total valid detections: %d", total_detections)
-
             return image, product_counts, total_detections, detection_coordinates
 
         except Exception as e:
@@ -182,6 +166,10 @@ class InferenceService:
             return image, {"ERROR-Detection Failure": 0}, 0, []
 
     def run_inference(self, db: Session, models, image_path: str, product_code_id: int):
+        """
+        Runs multi-model sequential inference across all active models mapped to a product_code_id.
+        Deduplicates bounding boxes across models using cross-model NMS and produces ONE unified output image.
+        """
         image = self._read_image(image_path)
         valid_products, self_products, competitor_products = self._get_product_sets(
             db,
@@ -197,62 +185,148 @@ class InferenceService:
                 "detection_coordinates": [],
             }
 
-        all_counts = defaultdict(int)
-        all_coordinates = []
-        annotated_image = image.copy()
-
-        # Initialize counts
-        self_count = 0
-        competition_count = 0
-
-        # Load active products to build the product_map for O(1) attribute lookup
-        products_list = db.query(Product).filter(Product.product_code_id == product_code_id).filter(Product.status == "active").all()
+        # Build product map for metadata extraction
+        products_list = (
+            db.query(Product)
+            .filter(Product.product_code_id == product_code_id)
+            .filter(Product.status == "active")
+            .all()
+        )
         product_map = {p.product_name: p for p in products_list}
 
+        raw_detections = []
+        model_names_list = []
+        device = self._get_prediction_device()
+
+        # Step 1: Sequential inference pass across all active models mapped to product code
         for bundle in models:
-            meta = bundle["meta"]
+            meta = bundle.get("meta")
+            model_obj = bundle.get("model")
+            m_name = getattr(meta, "model_name", "YOLO") or "YOLO"
+            model_names_list.append(m_name)
+
             image_size = getattr(meta, "image_size", 1280) or 1280
             conf_threshold = getattr(meta, "conf_threshold", 0.20) or 0.20
             iou_threshold = getattr(meta, "iou_threshold", 0.20) or 0.20
 
             try:
-                annotated_image, product_counts, _, coordinates = self.detect_products_by_code(
-                    image=annotated_image,
-                    product_code=str(product_code_id),
-                    model=bundle["model"],
-                    valid_product_names=valid_products,
-                    self_products_list=self_products,
-                    competitor_products_list=competitor_products,
-                    image_size=image_size,
-                    conf_thres=conf_threshold,
-                    iou_thres=iou_threshold,
+                logger.info("Running sequential inference for model='%s' (imgsz=%s conf=%s)", m_name, image_size, conf_threshold)
+                results = model_obj.predict(
+                    source=image,
+                    imgsz=image_size,
+                    conf=conf_threshold,
+                    iou=iou_threshold,
+                    device=device,
+                    verbose=False,
                 )
 
-                #  Extracting Brand,Category and AI Codes
-                for key, value in product_counts.items():
-                    if key.startswith("ERROR-") or key.startswith("No products"):
+                for result in results:
+                    if result.boxes is None or len(result.boxes) == 0:
                         continue
-                    
-                    brand_cat_ai = self._get_brand_category_and_ai_codes(key, product_map)
 
-                    if key in self_products:
-                        self_count += value
-                        product_type = "Self"
-                    elif key in competitor_products:
-                        competition_count += value
-                        product_type = "Competition"
-                    else:
-                        product_type = ""
+                    for box in result.boxes:
+                        class_label = self._get_class_name(model_obj, int(box.cls.item()))
+                        if class_label not in valid_products:
+                            continue
 
-                    all_counts[key] += value
+                        conf = float(box.conf.item()) if box.conf is not None else 0.5
+                        x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
 
-                all_coordinates.extend(coordinates)
-            except Exception:
-                model_name = getattr(bundle.get("meta"), "model_name", "unknown")
-                logger.exception("Inference failed for model=%s", model_name)
+                        raw_detections.append({
+                            "label": class_label,
+                            "bbox": [x1, y1, x2, y2],
+                            "confidence": conf,
+                            "model_name": m_name,
+                        })
+            except Exception as model_err:
+                logger.exception("Inference failed for model='%s': %s", m_name, model_err)
 
-        if not all_counts:
-            logger.warning("No detections produced by any model")
+        logger.info(
+            "Raw detections collected across %d active model(s): count=%d",
+            len(models),
+            len(raw_detections),
+        )
+
+        # Step 2: Cross-Model Non-Maximum Suppression (NMS) & Box Merging
+        kept_detections = _apply_cross_model_nms(raw_detections, iou_threshold=0.40)
+        logger.info("Deduplicated detections after cross-model NMS: count=%d", len(kept_detections))
+
+        # Step 3: Single Unified Image Rendering
+        annotated_image = image.copy()
+        all_counts = defaultdict(int)
+        all_coordinates = []
+        self_count = 0
+        competition_count = 0
+        conf_sum = 0.0
+
+        for det in kept_detections:
+            class_label = det["label"]
+            x1, y1, x2, y2 = det["bbox"]
+            conf_val = det["confidence"]
+            m_source = det["model_name"]
+
+            all_counts[class_label] += 1
+            conf_sum += conf_val
+            all_coordinates.append({
+                class_label: (x1, y1, x2, y2),
+                "confidence": round(conf_val, 4),
+                "model": m_source,
+            })
+
+            if class_label in self_products:
+                self_count += 1
+                box_color = (0, 180, 0) # Green for Self
+            elif class_label in competitor_products:
+                competition_count += 1
+                box_color = (0, 0, 225) # Red for Competitor
+            else:
+                box_color = (255, 140, 0) # Orange for General
+
+            # Draw bounding box
+            cv2.rectangle(annotated_image, (x1, y1), (x2, y2), box_color, 2)
+
+            # Draw label background box & text badge
+            font_face = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = max(0.5, min(image.shape[:2]) / 2200)
+            font_thickness = max(1, int(font_scale * 2))
+            label_text = f"{class_label} ({conf_val * 100:.0f}%)"
+
+            (text_width, text_height), baseline = cv2.getTextSize(
+                label_text, font_face, font_scale, font_thickness
+            )
+
+            padding = 6
+            text_x = x1 + padding
+            text_y = max(y1, text_height + padding)
+
+            box_x1 = x1
+            box_y1 = text_y - text_height - padding
+            box_x2 = x1 + text_width + padding * 2
+            box_y2 = text_y - baseline + padding // 2
+
+            cv2.rectangle(
+                annotated_image,
+                (box_x1, box_y1),
+                (box_x2, box_y2),
+                box_color,
+                -1,
+            )
+
+            cv2.putText(
+                annotated_image,
+                label_text,
+                (text_x, text_y - padding // 2),
+                font_face,
+                font_scale,
+                (255, 255, 255),
+                font_thickness,
+                cv2.LINE_AA,
+            )
+
+        combined_model_name = " + ".join(dict.fromkeys(model_names_list)) if model_names_list else "YOLO"
+
+        if not kept_detections:
+            logger.warning("No valid detections produced across %d models", len(models))
             return {
                 "counts": {"No products detected": 0},
                 "total_product_count": 0,
@@ -260,51 +334,47 @@ class InferenceService:
                 "total_competition_count": 0,
                 "brand_counts": [],
                 "detected_products": [],
-                "products": [{"name":"","count":0,"brand":"","category":"","product_type":"","ai_code":""}],
+                "products": [{"name": "", "count": 0, "brand": "", "category": "", "product_type": "", "ai_code": ""}],
                 "detection_coordinates": [],
                 "annotated_image": annotated_image,
+                "model_name": combined_model_name,
+                "confidence": 0.0,
             }
 
-        total = sum(all_counts.values())
+        total = len(kept_detections)
+        avg_confidence = round(conf_sum / total, 4) if total > 0 else 0.0
 
-        # Build detected_products (strings for React) and products (detailed dicts)
+        # Step 4: Build brand counts and detailed products lists
         brand_to_count = defaultdict(int)
-        detected_products_names = []
+        detected_products_names = list(all_counts.keys())
         products_detailed = []
 
-        for key, value in all_counts.items():
+        for key, count_val in all_counts.items():
             prod = product_map.get(key)
             brand_name = prod.brand if prod else None
             if brand_name:
-                brand_to_count[brand_name] += value
-            
-            brand_cat_ai = self._get_brand_category_and_ai_codes(key, product_map)
-            if key in self_products:
-                product_type = "Self"
-            elif key in competitor_products:
-                product_type = "Competition"
-            else:
-                product_type = ""
+                brand_to_count[brand_name] += count_val
 
-            detected_products_names.append(key)
+            brand_cat_ai = self._get_brand_category_and_ai_codes(key, product_map)
+            product_type = "Self" if key in self_products else "Competition" if key in competitor_products else ""
 
             if brand_cat_ai is not None:
                 products_detailed.append({
                     "name": key,
-                    "count": value,
+                    "count": count_val,
                     "brand": brand_cat_ai[0],
                     "category": brand_cat_ai[1],
                     "product_type": product_type,
-                    "ai_code": brand_cat_ai[2]
+                    "ai_code": brand_cat_ai[2],
                 })
             else:
                 products_detailed.append({
                     "name": key,
-                    "count": value,
+                    "count": count_val,
                     "brand": "",
                     "category": "",
                     "product_type": product_type,
-                    "ai_code": ""
+                    "ai_code": "",
                 })
 
         brand_counts = [{"brand": brand, "count": cnt} for brand, cnt in brand_to_count.items()]
@@ -319,6 +389,8 @@ class InferenceService:
             "products": products_detailed,
             "detection_coordinates": all_coordinates,
             "annotated_image": annotated_image,
+            "model_name": combined_model_name,
+            "confidence": avg_confidence,
         }
 
     def merge_predictions(self, predictions):
