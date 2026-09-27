@@ -331,7 +331,7 @@ services:
 
   minio:
 
-    image: minio/minio:RELEASE.2024-07-10T18-41-49Z
+    image: cgr.dev/chainguard/minio:latest
 
     container_name: fmcg-minio
 
