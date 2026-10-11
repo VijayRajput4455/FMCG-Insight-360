@@ -34,7 +34,8 @@ def _save_annotated_image(image, audit_id: int) -> str | None:
         )
         return object_key
 
-    output_dir = os.getenv("AUDIT_OUTPUT_DIR", "outputs/audit")
+    default_dir = "outputs/audit" if os.path.isdir("outputs") else ("../outputs/audit" if os.path.isdir("../outputs") else "outputs/audit")
+    output_dir = os.getenv("AUDIT_OUTPUT_DIR", default_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     filename = f"audit_{audit_id}_{uuid.uuid4().hex}.jpg"

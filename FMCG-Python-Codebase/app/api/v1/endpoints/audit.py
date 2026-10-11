@@ -88,7 +88,8 @@ def _save_input_image(image: np.ndarray) -> str:
 		)
 		return object_key
 
-	input_dir = os.getenv("AUDIT_INPUT_DIR", "uploads/audit")
+	default_dir = "uploads/audit" if os.path.isdir("uploads") else ("../uploads/audit" if os.path.isdir("../uploads") else "uploads/audit")
+	input_dir = os.getenv("AUDIT_INPUT_DIR", default_dir)
 	os.makedirs(input_dir, exist_ok=True)
 
 	filename = f"audit_input_{uuid.uuid4().hex}.jpg"

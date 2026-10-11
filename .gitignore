@@ -45,7 +45,12 @@ node_modules/
 **/.env*.local
 
 # Runtime Artifacts & Logs
-uploads/
-outputs/
-logs/
+uploads/*
+!uploads/.gitkeep
+!uploads/*/.gitkeep
+outputs/*
+!outputs/.gitkeep
+!outputs/*/.gitkeep
+logs/*
+!logs/.gitkeep
 *.log

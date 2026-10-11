@@ -117,14 +117,26 @@ async def get_metrics(request: Request):
 	"""Prometheus metrics endpoint"""
 	return await metrics_endpoint(request)
 
+def _resolve_storage_dir(dir_name: str) -> str:
+    if os.path.isdir(dir_name):
+        return dir_name
+    parent = os.path.join("..", dir_name)
+    if os.path.isdir(parent):
+        return parent
+    os.makedirs(dir_name, exist_ok=True)
+    return dir_name
+
 # Serve annotated output images at /images/...
-_OUTPUT_DIR = os.getenv("AUDIT_OUTPUT_DIR", "outputs/audit")
+_resolved_outputs = _resolve_storage_dir("outputs")
+_OUTPUT_DIR = os.getenv("AUDIT_OUTPUT_DIR", os.path.join(_resolved_outputs, "audit"))
 os.makedirs(_OUTPUT_DIR, exist_ok=True)
-app.mount("/images", StaticFiles(directory="outputs"), name="images")
+app.mount("/images", StaticFiles(directory=_resolved_outputs), name="images")
 
 # Serve input upload images at /uploads/...
-os.makedirs("uploads", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+_resolved_uploads = _resolve_storage_dir("uploads")
+_INPUT_DIR = os.getenv("AUDIT_INPUT_DIR", os.path.join(_resolved_uploads, "audit"))
+os.makedirs(_INPUT_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=_resolved_uploads), name="uploads")
 
 
 # Create tables (DEV ONLY - remove later for Alembic)
