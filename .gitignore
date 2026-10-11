@@ -44,13 +44,11 @@ node_modules/
 **/.next/
 **/.env*.local
 
-# Runtime Artifacts & Logs
-uploads/*
-!uploads/.gitkeep
-!uploads/*/.gitkeep
-outputs/*
-!outputs/.gitkeep
-!outputs/*/.gitkeep
-logs/*
-!logs/.gitkeep
+# Runtime Artifacts & Logs (Created automatically at runtime)
+uploads/
+outputs/
+logs/
 *.log
+**/uploads/
+**/outputs/
+**/logs/
