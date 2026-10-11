@@ -45,10 +45,12 @@ node_modules/
 **/.env*.local
 
 # Runtime Artifacts & Logs (Created automatically at runtime)
+FMCG-Logs/
 uploads/
 outputs/
 logs/
 *.log
+**/FMCG-Logs/
 **/uploads/
 **/outputs/
 **/logs/

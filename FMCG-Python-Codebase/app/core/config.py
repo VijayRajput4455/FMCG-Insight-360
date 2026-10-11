@@ -8,10 +8,23 @@ def _env_bool(name: str, default: str = "false") -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _resolve_log_dir() -> str:
+    env_dir = os.getenv("LOG_DIR")
+    if env_dir:
+        return env_dir
+    if os.path.exists("FMCG-Logs"):
+        return "FMCG-Logs"
+    if os.path.exists("../FMCG-Logs"):
+        return "../FMCG-Logs"
+    target = "../FMCG-Logs" if os.path.exists("../FMCG-Python-Codebase") else "FMCG-Logs"
+    os.makedirs(target, exist_ok=True)
+    return target
+
+
 class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    LOG_DIR: str = os.getenv("LOG_DIR", "logs" if not os.path.isdir("FMCG-Python-Codebase") else "FMCG-Python-Codebase/logs")
+    LOG_DIR: str = _resolve_log_dir()
     LOG_FILE: str = os.getenv("LOG_FILE", "FMCG-Insight-360.log")
     AUTO_START_WORKER: bool = _env_bool("AUTO_START_WORKER")
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")

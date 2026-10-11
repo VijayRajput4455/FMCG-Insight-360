@@ -64,7 +64,7 @@ services:
       - model_store:/app/container_models
       - ../FMCG-ML-Models:/app/host_models:ro
       - ./docker/init_models.sh:/usr/local/bin/init_models.sh
-      - ../FMCG-Python-Codebase/logs:/app/logs
+      - ../FMCG-Logs:/app/logs
       - ../FMCG-Python-Codebase/uploads:/app/uploads
       - ../FMCG-Python-Codebase/outputs:/app/outputs
     entrypoint: ["/usr/local/bin/init_models.sh"]
@@ -144,7 +144,7 @@ services:
       - model_store:/app/container_models:ro
       - ../FMCG-ML-Models:/app/host_models:ro
       - ./docker/init_models.sh:/usr/local/bin/init_models.sh:ro
-      - ../FMCG-Python-Codebase/logs:/app/logs
+      - ../FMCG-Logs:/app/logs
       - ../FMCG-Python-Codebase/uploads:/app/uploads
       - ../FMCG-Python-Codebase/outputs:/app/outputs
     entrypoint: ["/usr/local/bin/init_models.sh"]
@@ -406,7 +406,7 @@ services:
     container_name: fmcg-promtail
 
     volumes:
-      - ../FMCG-Python-Codebase/logs:/var/log/fmcg
+      - ../FMCG-Logs:/var/log/fmcg
       - ./monitoring/promtail-config.yml:/etc/promtail/config.yml
 
     command:
