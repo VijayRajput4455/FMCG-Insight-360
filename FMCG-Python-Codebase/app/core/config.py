@@ -2,6 +2,14 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+for candidate_env in (
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "FMCG-DevOps-Codebase", ".env"),
+    os.path.join("FMCG-DevOps-Codebase", ".env"),
+    os.path.join("..", "FMCG-DevOps-Codebase", ".env"),
+):
+    if os.path.exists(candidate_env):
+        load_dotenv(os.path.abspath(candidate_env), override=False)
+        break
 
 
 def _env_bool(name: str, default: str = "false") -> bool:

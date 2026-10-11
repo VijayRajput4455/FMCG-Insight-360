@@ -230,15 +230,16 @@ FMCG-Insight-360/
 ├── FMCG-DevOps-Codebase/           # Infrastructure, Monitoring & Orchestration
 │   ├── docker/                     # Container init & model synchronization scripts
 │   ├── monitoring/                 # Prometheus, Grafana, Loki, Promtail specs
-│   └── docker-compose.yml          # Subsystem compose file
+│   ├── docker-compose.yml          # Multi-container service orchestrator
+│   ├── .env                        # Centralized system environment configuration
+│   └── .env.docker                 # Container environment overrides
 │
+├── FMCG-Logs/                      # Easy-access local log repository (runtime)
 ├── FMCG-ML-Models/                 # Neural network weights and model configs
 │   └── yolov26/                    # YOLO model weights (yolo26m.pt)
 │
-├── FMCG-Resources/                 # Branding and documentation assets
-│   └── FMCG_logo.png
-│
-└── .env                            # System environment configuration
+└── FMCG-Resources/                 # Branding and documentation assets
+    └── FMCG_logo.png
 ```
 
 ---

@@ -37,7 +37,7 @@ services:
 
     # Load environment variables
     env_file:
-      - ../.env.docker
+      - ./.env.docker
     environment:
       - ML_MODEL_DIR=/app/container_models
       - CONTAINER_MODE=true
@@ -136,7 +136,7 @@ services:
       ["python", "-m", "app.workers.worker"]
 
     env_file:
-      - ../.env.docker
+      - ./.env.docker
     environment:
       - ML_MODEL_DIR=/app/container_models
       - CONTAINER_MODE=true
@@ -336,7 +336,7 @@ services:
     container_name: fmcg-minio
 
     env_file:
-      - ../.env.docker
+      - ./.env.docker
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
