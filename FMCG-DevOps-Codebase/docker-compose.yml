@@ -1,0 +1,578 @@
+services:
+
+  # ==========================================================
+  # APPLICATION LAYER
+  # ==========================================================
+  #
+  # This section contains all services responsible for
+  # executing the FMCG Insight application.
+  #
+  # api      -> FastAPI REST API
+  # worker   -> Background AI processing worker
+  #
+  # These services communicate with:
+  #   • PostgreSQL (Database)
+  #   • RabbitMQ (Message Queue)
+  #   • Redis (Cache)
+  #
+  # ==========================================================
+
+  api:
+
+    # Build Docker image from local Dockerfile
+    build:
+      context: ./FMCG-Python-Codebase
+      dockerfile: Dockerfile
+
+    # Easy-to-identify container name
+    container_name: fmcg-api
+
+    # Enable NVIDIA GPU inside container
+    # Required for:
+    #   - YOLO
+    #   - OCR
+    #   - Embedding Generation
+    #   - LLM Inference
+    gpus: all
+
+    # Load environment variables
+    env_file:
+      - .env.docker
+    environment:
+      - ML_MODEL_DIR=/app/container_models
+      - CONTAINER_MODE=true
+    # Expose FastAPI
+    # Host:8000 -> Container:8000
+    ports:
+      - "8000:8000"
+
+    # Persist important folders
+    #
+    # logs/
+    #     Application logs
+    #
+    # uploads/
+    #     User uploaded files
+    #
+    # outputs/
+    #     Generated reports
+    #
+    # FMCG-ML-Models/
+    #     AI Models
+    #
+    volumes:
+      - model_store:/app/container_models
+      - ./FMCG-ML-Models:/app/host_models:ro
+      - ./FMCG-DevOps-Codebase/docker/init_models.sh:/usr/local/bin/init_models.sh
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    entrypoint: ["/usr/local/bin/init_models.sh"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+    # Wait until dependencies become healthy
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      rabbitmq:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+      minio:
+        condition: service_started
+
+    # Restart automatically
+    restart: unless-stopped
+
+    # Connect API to both networks
+    #
+    # backend
+    #     Business services
+    #
+    # monitoring
+    #     Prometheus/Grafana/Loki
+    #
+    networks:
+      - backend
+      - monitoring
+
+
+
+  # ==========================================================
+  # AI WORKER
+  # ==========================================================
+  #
+  # Executes long-running background tasks.
+  #
+  # Example:
+  #
+  # API
+  #   ↓
+  # RabbitMQ
+  #   ↓
+  # Worker
+  #   ↓
+  # AI Pipeline
+  #
+  # Keeps API responsive.
+  #
+  # ==========================================================
+
+  worker:
+
+    build:
+      context: ./FMCG-Python-Codebase
+      dockerfile: Dockerfile
+
+    container_name: fmcg-worker
+
+    gpus: all
+
+    # Start Worker instead of FastAPI
+    command:
+      ["python", "-m", "app.workers.worker"]
+
+    env_file:
+      - .env.docker
+    environment:
+      - ML_MODEL_DIR=/app/container_models
+      - CONTAINER_MODE=true
+    volumes:
+      - model_store:/app/container_models:ro
+      - ./FMCG-ML-Models:/app/host_models:ro
+      - ./FMCG-DevOps-Codebase/docker/init_models.sh:/usr/local/bin/init_models.sh:ro
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    entrypoint: ["/usr/local/bin/init_models.sh"]
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      rabbitmq:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+      minio:
+        condition: service_started
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+      - monitoring
+
+
+
+  # ==========================================================
+  # DATABASE LAYER
+  # ==========================================================
+  #
+  # Stores:
+  #
+  #   • Users
+  #   • Products
+  #   • Brands
+  #   • AI Results
+  #   • Jobs
+  #   • Audit Logs
+  #
+  # ==========================================================
+
+  postgres:
+
+    image: postgres:16-alpine
+
+    container_name: fmcg-postgres
+
+    environment:
+      POSTGRES_DB: fmcg_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+
+    # Host 5433
+    # Container 5432
+    ports:
+      - "5433:5432"
+
+    # Persist database data
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    # Docker waits until PostgreSQL accepts connections
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U admin -d fmcg_db"]
+
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+
+
+  # ==========================================================
+  # MESSAGE BROKER
+  # ==========================================================
+  #
+  # RabbitMQ decouples API from AI processing.
+  #
+  # API
+  #     ↓
+  # Queue
+  #     ↓
+  # Worker
+  #
+  # Benefits:
+  #
+  # • Retry
+  # • Scalability
+  # • Reliability
+  # • Async Processing
+  #
+  # ==========================================================
+
+  rabbitmq:
+
+    image: rabbitmq:3.13-management
+
+    container_name: fmcg-rabbitmq
+
+    ports:
+
+      # AMQP
+      - "5672:5672"
+
+      # Management Dashboard
+      - "15672:15672"
+
+    # Check RabbitMQ readiness
+    healthcheck:
+
+      test:
+        ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+
+
+  # ==========================================================
+  # REDIS
+  # ==========================================================
+  #
+  # Used for:
+  #
+  # • Cache
+  # • Rate Limiting
+  # • Temporary Data
+  # • Session Storage
+  # • Fast Lookups
+  #
+  # ==========================================================
+
+  redis:
+
+    image: redis:7-alpine
+
+    container_name: fmcg-redis
+
+    ports:
+      - "6379:6379"
+
+    healthcheck:
+
+      test:
+        ["CMD", "redis-cli", "ping"]
+
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+    volumes:
+      - redis_data:/data
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+
+
+  # ==========================================================
+  # OBJECT STORAGE
+  # ==========================================================
+  #
+  # Stores temporary inputs and final annotated outputs.
+  #
+  # ==========================================================
+
+  minio:
+
+    image: cgr.dev/chainguard/minio:latest
+
+    container_name: fmcg-minio
+
+    env_file:
+      - .env.docker
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
+
+    command: server /data --console-address ":9001"
+
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+    volumes:
+      - minio_data:/data
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+
+
+  # ==========================================================
+  # LOG AGGREGATION
+  # ==========================================================
+  #
+  # Loki stores logs.
+  #
+  # Similar to Elasticsearch
+  # but optimized for logs.
+  #
+  # ==========================================================
+
+  loki:
+
+    image: grafana/loki:2.9.0
+
+    container_name: fmcg-loki
+
+    ports:
+      - "3100:3100"
+
+    volumes:
+      - ./FMCG-DevOps-Codebase/monitoring/loki-config.yml:/etc/loki/local-config.yaml
+
+    command:
+      -config.file=/etc/loki/local-config.yaml
+
+    restart: unless-stopped
+
+    networks:
+      - monitoring
+
+
+
+  # ==========================================================
+  # LOG COLLECTOR
+  # ==========================================================
+  #
+  # Promtail watches application logs and
+  # continuously pushes them into Loki.
+  #
+  # ==========================================================
+
+  promtail:
+
+    image: grafana/promtail:2.9.0
+
+    container_name: fmcg-promtail
+
+    volumes:
+      - ./logs:/var/log/fmcg
+      - ./FMCG-DevOps-Codebase/monitoring/promtail-config.yml:/etc/promtail/config.yml
+
+    command:
+      -config.file=/etc/promtail/config.yml
+
+    depends_on:
+      - loki
+
+    restart: unless-stopped
+
+    networks:
+      - monitoring
+
+
+
+  # ==========================================================
+  # METRICS SERVER
+  # ==========================================================
+  #
+  # Collects metrics such as:
+  #
+  # • CPU
+  # • Memory
+  # • Request Count
+  # • API Latency
+  # • Worker Performance
+  #
+  # ==========================================================
+
+  prometheus:
+
+    image: prom/prometheus:latest
+
+    container_name: fmcg-prometheus
+
+    ports:
+      - "9090:9090"
+
+    volumes:
+      - ./FMCG-DevOps-Codebase/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+    restart: unless-stopped
+
+    networks:
+      - monitoring
+
+
+
+  # ==========================================================
+  # VISUALIZATION
+  # ==========================================================
+  #
+  # Grafana visualizes:
+  #
+  # • Metrics
+  # • Logs
+  # • Dashboards
+  # • Alerts
+  #
+  # ==========================================================
+
+  grafana:
+
+    image: grafana/grafana:latest
+
+    container_name: fmcg-grafana
+
+    ports:
+      - "3010:3000"
+
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./FMCG-DevOps-Codebase/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./FMCG-DevOps-Codebase/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+
+    depends_on:
+      - prometheus
+      - loki
+
+    restart: unless-stopped
+
+    networks:
+      - monitoring
+
+
+
+  # ==========================================================
+  # WEB CONSOLE (FRONTEND)
+  # ==========================================================
+  #
+  # Next.js visual administration interface.
+  #
+  # ==========================================================
+
+  frontend:
+    build:
+      context: ./FMCG-Frontend-Codebase
+      dockerfile: Dockerfile
+    container_name: fmcg-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - backend
+
+
+
+# ==========================================================
+# DOCKER VOLUMES
+# ==========================================================
+#
+# Named volumes survive container deletion.
+#
+# docker compose down
+#     ↓
+# Data remains
+#
+# docker compose up
+#     ↓
+# Data is restored
+#
+# ==========================================================
+
+volumes:
+
+  postgres_data:
+  rabbitmq_data:
+  redis_data:
+  minio_data:
+  grafana_data:
+  prometheus_data:
+  model_store:
+
+
+
+# ==========================================================
+# DOCKER NETWORKS
+# ==========================================================
+#
+# backend
+#     Internal communication
+#
+# monitoring
+#     Monitoring stack
+#
+# Splitting networks improves
+# security and organization.
+#
+# ==========================================================
+
+networks:
+
+  backend:
+    driver: bridge
+
+  monitoring:
+    driver: bridge

@@ -154,7 +154,7 @@ export default function ModelRegistryManager() {
           return;
         }
         if (!folderName.trim()) {
-          setError("Folder Name is mandatory. Models must be uploaded into a subfolder inside ml_models.");
+          setError("Folder Name is mandatory. Models must be uploaded into a subfolder inside FMCG-ML-Models.");
           return;
         }
         await uploadModel(
@@ -166,7 +166,7 @@ export default function ModelRegistryManager() {
           confThreshold,
           iouThreshold
         );
-        setSuccess(`Model uploaded to ml_models/${folderName.trim()}/${modelFile.name} and registered successfully!`);
+        setSuccess(`Model uploaded to FMCG-ML-Models/${folderName.trim()}/${modelFile.name} and registered successfully!`);
       } else {
         if (!modelPath) {
           setError("Weights Storage Path is required.");
@@ -434,7 +434,7 @@ export default function ModelRegistryManager() {
                 {regMode === "upload" ? (
                   <>
                     <label className="stack" style={{ gap: "0.35rem" }}>
-                      <span style={{ fontSize: "0.82rem", fontWeight: 700 }}>Folder Name (inside ml_models) *</span>
+                      <span style={{ fontSize: "0.82rem", fontWeight: 700 }}>Folder Name (inside FMCG-ML-Models) *</span>
                       <input
                         type="text"
                         placeholder="e.g. yolo_v8"
@@ -461,7 +461,7 @@ export default function ModelRegistryManager() {
                     <input 
                       value={modelPath} 
                       onChange={(e) => setModelPath(e.target.value)} 
-                      placeholder="e.g. ml_models/yolo_v8/yolov8s.pt"
+                      placeholder="e.g. FMCG-ML-Models/yolov26/yolo26m.pt"
                       required
                     />
                   </label>
@@ -482,7 +482,7 @@ export default function ModelRegistryManager() {
                   gap: "0.5rem"
                 }}>
                   <span>📍</span>
-                  <span><strong>Saved Storage Target:</strong> <code>ml_models/{folderName.trim() || "<Folder_Name>"}/{modelFile ? modelFile.name : "<weights.pt>"}</code></span>
+                  <span><strong>Saved Storage Target:</strong> <code>FMCG-ML-Models/{folderName.trim() || "<Folder_Name>"}/{modelFile ? modelFile.name : "<weights.pt>"}</code></span>
                 </div>
               )}
             </div>

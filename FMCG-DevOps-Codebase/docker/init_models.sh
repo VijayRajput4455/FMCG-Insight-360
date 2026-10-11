@@ -20,8 +20,9 @@ done
 if [ -w "/app/container_models" ]; then
   # Sync all host models from /app/host_models if they exist
   if [ -d "/app/host_models" ]; then
-    echo "📦 Syncing host models from /app/host_models to /app/container_models/ml_models..."
-    mkdir -p /app/container_models/ml_models
+    echo "📦 Syncing host models from /app/host_models to /app/container_models/FMCG-ML-Models & ml_models..."
+    mkdir -p /app/container_models/FMCG-ML-Models /app/container_models/ml_models
+    cp -rf /app/host_models/* /app/container_models/FMCG-ML-Models/ 2>/dev/null || true
     cp -rf /app/host_models/* /app/container_models/ml_models/ 2>/dev/null || true
   fi
 

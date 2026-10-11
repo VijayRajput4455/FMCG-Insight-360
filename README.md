@@ -1,7 +1,7 @@
 # FMCG Insight 360
 
 <p align="center">
-	<img src="resources/FMCG_logo.png" alt="FMCG Insight 360 Logo" width="980" />
+	<img src="FMCG-Resources/FMCG_logo.png" alt="FMCG Insight 360 Logo" width="980" />
 </p>
 
 <p align="center">
@@ -78,7 +78,12 @@ If you want to run the backend and frontend services locally on your host machin
 
 #### 1. Backend Setup (FastAPI & Worker)
 
-1. **Create and Activate a Virtual Environment**:
+1. **Navigate to the Python Codebase Directory**:
+   ```bash
+   cd FMCG-Python-Codebase
+   ```
+
+2. **Create and Activate a Virtual Environment**:
    ```bash
    # Windows (PowerShell)
    python -m venv venv
@@ -89,23 +94,23 @@ If you want to run the backend and frontend services locally on your host machin
    source venv/bin/activate
    ```
 
-2. **Install Python Dependencies**:
+3. **Install Python Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Configure Environment Variables**:
+4. **Configure Environment Variables**:
    Copy `.env` and verify database and Redis configuration:
    ```bash
-   cp .env.example .env  # Or use existing .env
+   cp .env.example .env  # Or use existing root .env
    ```
 
-4. **Start FastAPI Backend Server**:
+5. **Start FastAPI Backend Server**:
    ```bash
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
-5. **Start Background Audit Worker** (In a separate terminal):
+6. **Start Background Audit Worker** (In a separate terminal from `FMCG-Python-Codebase`):
    ```bash
    python -m app.workers.worker
    ```
@@ -114,7 +119,7 @@ If you want to run the backend and frontend services locally on your host machin
 
 1. **Navigate to the Frontend Directory**:
    ```bash
-   cd frontend
+   cd FMCG-Frontend-Codebase
    ```
 
 2. **Install Dependencies**:
@@ -201,25 +206,39 @@ flowchart LR
 
 ```text
 FMCG-Insight-360/
-├── .env                    # System environment configuration
-├── Dockerfile              # Production FastAPI / Worker container spec
-├── docker-compose.yml      # Orchestration for all 10 microservices
-├── requirements.txt        # Python backend dependencies
-├── resources/              # Branding and documentation assets
-├── ml_models/              # Neural network weights and model configs
-├── app/                    # FastAPI Backend Application
-│   ├── api/v1/             # Endpoint routes (audit, models, product_codes, products)
-│   ├── core/               # Database, Redis, logger, and configuration
-│   ├── models/             # SQLAlchemy ORM models
-│   ├── repositories/       # Database access layers
-│   ├── services/           # Inference pipeline, MinIO, and audit logic
-│   └── workers/            # RabbitMQ background worker process
-└── frontend/               # Next.js 14 Operations Console
-    ├── src/
-    │   ├── app/            # App router pages (dashboard, analytics, settings, audit, etc.)
-    │   ├── components/     # UI Components (AuditConsole, ExportModal, SKU Managers)
-    │   └── lib/            # API client and WebSocket handlers
-    └── package.json
+├── FMCG-Python-Codebase/           # FastAPI Backend Application & ML Pipeline
+│   ├── app/
+│   │   ├── api/v1/                 # Endpoints (audit, models, product_codes, products)
+│   │   ├── core/                   # Database, Redis, logger, and configuration
+│   │   ├── models/                 # SQLAlchemy ORM models
+│   │   ├── repositories/           # Database access layers
+│   │   ├── services/               # Inference pipeline, MinIO, and audit logic
+│   │   └── workers/                # RabbitMQ background worker process
+│   ├── Dockerfile                  # Production FastAPI / Worker container spec
+│   ├── requirements.txt            # Python backend dependencies
+│   └── environment.yml
+│
+├── FMCG-Frontend-Codebase/         # Next.js 14 Operations Console
+│   ├── src/
+│   │   ├── app/                    # App router pages (dashboard, analytics, settings, audit)
+│   │   ├── components/             # UI Components (AuditConsole, ExportModal, SKU Managers)
+│   │   └── lib/                    # API client and WebSocket handlers
+│   ├── Dockerfile                  # Frontend container spec
+│   └── package.json
+│
+├── FMCG-DevOps-Codebase/           # Infrastructure, Monitoring & Orchestration
+│   ├── docker/                     # Container init & model synchronization scripts
+│   ├── monitoring/                 # Prometheus, Grafana, Loki, Promtail specs
+│   └── docker-compose.yml          # Subsystem compose file
+│
+├── FMCG-ML-Models/                 # Neural network weights and model configs
+│   └── yolov26/                    # YOLO model weights (yolo26m.pt)
+│
+├── FMCG-Resources/                 # Branding and documentation assets
+│   └── FMCG_logo.png
+│
+├── .env                            # System environment configuration
+└── docker-compose.yml              # Root-level multi-service orchestrator
 ```
 
 ---

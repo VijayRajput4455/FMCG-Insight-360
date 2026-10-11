@@ -33,7 +33,7 @@ class Settings:
     RABBITMQ_MAX_RETRIES: int = int(os.getenv("RABBITMQ_MAX_RETRIES", "3"))
     RATE_LIMIT_REQUESTS_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_REQUESTS_PER_MINUTE", "10"))
     RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
-    ML_MODEL_DIR: str = os.getenv("ML_MODEL_DIR", os.getenv("ML_FOLDER", "ml_models"))
+    ML_MODEL_DIR: str = os.getenv("ML_MODEL_DIR", os.getenv("ML_FOLDER", "FMCG-ML-Models" if os.path.exists("FMCG-ML-Models") else ("../FMCG-ML-Models" if os.path.exists("../FMCG-ML-Models") else "ml_models")))
     MINIO_ENABLED: bool = _env_bool("MINIO_ENABLED")
     MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "localhost:9000")
     MINIO_PUBLIC_ENDPOINT: str = os.getenv("MINIO_PUBLIC_ENDPOINT", MINIO_ENDPOINT)

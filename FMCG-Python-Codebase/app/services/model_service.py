@@ -72,11 +72,32 @@ class ModelService:
         if os.path.isabs(model_path):
             return os.path.normpath(model_path)
 
-        # If it already exists as-is relative to current working directory, use it
-        if os.path.exists(model_path):
-            return os.path.normpath(os.path.abspath(model_path))
+        # Candidate locations to check
+        candidates = [
+            model_path,
+            os.path.join(base_dir, model_path),
+            os.path.join("FMCG-ML-Models", model_path),
+            os.path.join("..", "FMCG-ML-Models", model_path),
+            os.path.join("ml_models", model_path),
+            os.path.join("..", "ml_models", model_path),
+        ]
 
-        # Otherwise, resolve relative to ML_MODEL_DIR
+        # If model_path starts with FMCG-ML-Models/ or ml_models/, also check stripped version
+        for prefix in ("FMCG-ML-Models/", "ml_models/"):
+            if model_path.startswith(prefix):
+                stripped = model_path[len(prefix):]
+                candidates.extend([
+                    stripped,
+                    os.path.join(base_dir, stripped),
+                    os.path.join("FMCG-ML-Models", stripped),
+                    os.path.join("..", "FMCG-ML-Models", stripped),
+                ])
+
+        for cand in candidates:
+            if os.path.exists(cand):
+                return os.path.normpath(os.path.abspath(cand))
+
+        # Otherwise fallback to resolving relative to base_dir
         resolved = os.path.join(base_dir, model_path)
         return os.path.normpath(os.path.abspath(resolved))
 

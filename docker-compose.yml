@@ -21,7 +21,7 @@ services:
 
     # Build Docker image from local Dockerfile
     build:
-      context: .
+      context: ./FMCG-Python-Codebase
       dockerfile: Dockerfile
 
     # Easy-to-identify container name
@@ -57,13 +57,13 @@ services:
     # outputs/
     #     Generated reports
     #
-    # ml_models/
+    # FMCG-ML-Models/
     #     AI Models
     #
     volumes:
       - model_store:/app/container_models
-      - ./ml_models:/app/host_models:ro
-      - ./docker/init_models.sh:/usr/local/bin/init_models.sh
+      - ./FMCG-ML-Models:/app/host_models:ro
+      - ./FMCG-DevOps-Codebase/docker/init_models.sh:/usr/local/bin/init_models.sh
       - ./logs:/app/logs
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
@@ -124,7 +124,7 @@ services:
   worker:
 
     build:
-      context: .
+      context: ./FMCG-Python-Codebase
       dockerfile: Dockerfile
 
     container_name: fmcg-worker
@@ -142,8 +142,8 @@ services:
       - CONTAINER_MODE=true
     volumes:
       - model_store:/app/container_models:ro
-      - ./ml_models:/app/host_models:ro
-      - ./docker/init_models.sh:/usr/local/bin/init_models.sh:ro
+      - ./FMCG-ML-Models:/app/host_models:ro
+      - ./FMCG-DevOps-Codebase/docker/init_models.sh:/usr/local/bin/init_models.sh:ro
       - ./logs:/app/logs
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
@@ -378,7 +378,7 @@ services:
       - "3100:3100"
 
     volumes:
-      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml
+      - ./FMCG-DevOps-Codebase/monitoring/loki-config.yml:/etc/loki/local-config.yaml
 
     command:
       -config.file=/etc/loki/local-config.yaml
@@ -407,7 +407,7 @@ services:
 
     volumes:
       - ./logs:/var/log/fmcg
-      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml
+      - ./FMCG-DevOps-Codebase/monitoring/promtail-config.yml:/etc/promtail/config.yml
 
     command:
       -config.file=/etc/promtail/config.yml
@@ -446,7 +446,7 @@ services:
       - "9090:9090"
 
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./FMCG-DevOps-Codebase/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
 
     command:
@@ -489,8 +489,8 @@ services:
 
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./FMCG-DevOps-Codebase/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./FMCG-DevOps-Codebase/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
 
     depends_on:
       - prometheus
@@ -513,7 +513,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./FMCG-Frontend-Codebase
       dockerfile: Dockerfile
     container_name: fmcg-frontend
     ports:
