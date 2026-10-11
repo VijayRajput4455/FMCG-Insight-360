@@ -11,7 +11,7 @@ def _env_bool(name: str, default: str = "false") -> bool:
 class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    LOG_DIR: str = os.getenv("LOG_DIR", "logs")
+    LOG_DIR: str = os.getenv("LOG_DIR", "logs" if not os.path.isdir("FMCG-Python-Codebase") else "FMCG-Python-Codebase/logs")
     LOG_FILE: str = os.getenv("LOG_FILE", "FMCG-Insight-360.log")
     AUTO_START_WORKER: bool = _env_bool("AUTO_START_WORKER")
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")

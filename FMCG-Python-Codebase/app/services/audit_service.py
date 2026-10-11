@@ -34,7 +34,7 @@ def _save_annotated_image(image, audit_id: int) -> str | None:
         )
         return object_key
 
-    default_dir = "outputs/audit" if os.path.isdir("outputs") else ("../outputs/audit" if os.path.isdir("../outputs") else "outputs/audit")
+    default_dir = os.path.join("FMCG-Python-Codebase", "outputs", "audit") if os.path.isdir("FMCG-Python-Codebase") else "outputs/audit"
     output_dir = os.getenv("AUDIT_OUTPUT_DIR", default_dir)
     os.makedirs(output_dir, exist_ok=True)
 

@@ -118,11 +118,10 @@ async def get_metrics(request: Request):
 	return await metrics_endpoint(request)
 
 def _resolve_storage_dir(dir_name: str) -> str:
-    if os.path.isdir(dir_name):
-        return dir_name
-    parent = os.path.join("..", dir_name)
-    if os.path.isdir(parent):
-        return parent
+    if os.path.isdir("FMCG-Python-Codebase"):
+        target = os.path.join("FMCG-Python-Codebase", dir_name)
+        os.makedirs(target, exist_ok=True)
+        return target
     os.makedirs(dir_name, exist_ok=True)
     return dir_name
 

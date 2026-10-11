@@ -64,9 +64,9 @@ services:
       - model_store:/app/container_models
       - ../FMCG-ML-Models:/app/host_models:ro
       - ./docker/init_models.sh:/usr/local/bin/init_models.sh
-      - ../logs:/app/logs
-      - ../uploads:/app/uploads
-      - ../outputs:/app/outputs
+      - ../FMCG-Python-Codebase/logs:/app/logs
+      - ../FMCG-Python-Codebase/uploads:/app/uploads
+      - ../FMCG-Python-Codebase/outputs:/app/outputs
     entrypoint: ["/usr/local/bin/init_models.sh"]
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
@@ -144,9 +144,9 @@ services:
       - model_store:/app/container_models:ro
       - ../FMCG-ML-Models:/app/host_models:ro
       - ./docker/init_models.sh:/usr/local/bin/init_models.sh:ro
-      - ../logs:/app/logs
-      - ../uploads:/app/uploads
-      - ../outputs:/app/outputs
+      - ../FMCG-Python-Codebase/logs:/app/logs
+      - ../FMCG-Python-Codebase/uploads:/app/uploads
+      - ../FMCG-Python-Codebase/outputs:/app/outputs
     entrypoint: ["/usr/local/bin/init_models.sh"]
 
     depends_on:
@@ -406,7 +406,7 @@ services:
     container_name: fmcg-promtail
 
     volumes:
-      - ../logs:/var/log/fmcg
+      - ../FMCG-Python-Codebase/logs:/var/log/fmcg
       - ./monitoring/promtail-config.yml:/etc/promtail/config.yml
 
     command:
