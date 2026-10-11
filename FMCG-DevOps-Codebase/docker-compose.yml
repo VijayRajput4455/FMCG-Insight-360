@@ -21,7 +21,7 @@ services:
 
     # Build Docker image from local Dockerfile
     build:
-      context: ./FMCG-Python-Codebase
+      context: ../FMCG-Python-Codebase
       dockerfile: Dockerfile
 
     # Easy-to-identify container name
@@ -37,7 +37,7 @@ services:
 
     # Load environment variables
     env_file:
-      - .env.docker
+      - ../.env.docker
     environment:
       - ML_MODEL_DIR=/app/container_models
       - CONTAINER_MODE=true
@@ -62,11 +62,11 @@ services:
     #
     volumes:
       - model_store:/app/container_models
-      - ./FMCG-ML-Models:/app/host_models:ro
-      - ./FMCG-DevOps-Codebase/docker/init_models.sh:/usr/local/bin/init_models.sh
-      - ./logs:/app/logs
-      - ./uploads:/app/uploads
-      - ./outputs:/app/outputs
+      - ../FMCG-ML-Models:/app/host_models:ro
+      - ./docker/init_models.sh:/usr/local/bin/init_models.sh
+      - ../logs:/app/logs
+      - ../uploads:/app/uploads
+      - ../outputs:/app/outputs
     entrypoint: ["/usr/local/bin/init_models.sh"]
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
@@ -124,7 +124,7 @@ services:
   worker:
 
     build:
-      context: ./FMCG-Python-Codebase
+      context: ../FMCG-Python-Codebase
       dockerfile: Dockerfile
 
     container_name: fmcg-worker
@@ -136,17 +136,17 @@ services:
       ["python", "-m", "app.workers.worker"]
 
     env_file:
-      - .env.docker
+      - ../.env.docker
     environment:
       - ML_MODEL_DIR=/app/container_models
       - CONTAINER_MODE=true
     volumes:
       - model_store:/app/container_models:ro
-      - ./FMCG-ML-Models:/app/host_models:ro
-      - ./FMCG-DevOps-Codebase/docker/init_models.sh:/usr/local/bin/init_models.sh:ro
-      - ./logs:/app/logs
-      - ./uploads:/app/uploads
-      - ./outputs:/app/outputs
+      - ../FMCG-ML-Models:/app/host_models:ro
+      - ./docker/init_models.sh:/usr/local/bin/init_models.sh:ro
+      - ../logs:/app/logs
+      - ../uploads:/app/uploads
+      - ../outputs:/app/outputs
     entrypoint: ["/usr/local/bin/init_models.sh"]
 
     depends_on:
@@ -336,7 +336,7 @@ services:
     container_name: fmcg-minio
 
     env_file:
-      - .env.docker
+      - ../.env.docker
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
@@ -378,7 +378,7 @@ services:
       - "3100:3100"
 
     volumes:
-      - ./FMCG-DevOps-Codebase/monitoring/loki-config.yml:/etc/loki/local-config.yaml
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml
 
     command:
       -config.file=/etc/loki/local-config.yaml
@@ -406,8 +406,8 @@ services:
     container_name: fmcg-promtail
 
     volumes:
-      - ./logs:/var/log/fmcg
-      - ./FMCG-DevOps-Codebase/monitoring/promtail-config.yml:/etc/promtail/config.yml
+      - ../logs:/var/log/fmcg
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml
 
     command:
       -config.file=/etc/promtail/config.yml
@@ -446,7 +446,7 @@ services:
       - "9090:9090"
 
     volumes:
-      - ./FMCG-DevOps-Codebase/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
 
     command:
@@ -489,8 +489,8 @@ services:
 
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./FMCG-DevOps-Codebase/monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./FMCG-DevOps-Codebase/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
 
     depends_on:
       - prometheus
@@ -513,7 +513,7 @@ services:
 
   frontend:
     build:
-      context: ./FMCG-Frontend-Codebase
+      context: ../FMCG-Frontend-Codebase
       dockerfile: Dockerfile
     container_name: fmcg-frontend
     ports:

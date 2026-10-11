@@ -42,8 +42,9 @@ cd FMCG-Insight-360
 
 #### 2. Start the Stack
 ```bash
-docker compose up --build -d
+docker compose -f FMCG-DevOps-Codebase/docker-compose.yml up --build -d
 ```
+*(Alternatively: `cd FMCG-DevOps-Codebase && docker compose up --build -d`)*
 
 #### 3. Access Application Services
 
@@ -61,8 +62,8 @@ Once the containers are started, access the services in your browser:
 #### 4. Rebuilding / Fresh Reset (If Needed)
 To perform a complete clean build and clear cached database volumes:
 ```bash
-docker compose down -v --remove-orphans
-docker compose up --build -d
+docker compose -f FMCG-DevOps-Codebase/docker-compose.yml down -v --remove-orphans
+docker compose -f FMCG-DevOps-Codebase/docker-compose.yml up --build -d
 ```
 
 ---
@@ -237,8 +238,7 @@ FMCG-Insight-360/
 ├── FMCG-Resources/                 # Branding and documentation assets
 │   └── FMCG_logo.png
 │
-├── .env                            # System environment configuration
-└── docker-compose.yml              # Root-level multi-service orchestrator
+└── .env                            # System environment configuration
 ```
 
 ---
